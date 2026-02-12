@@ -16,7 +16,7 @@ public class MecanumDrive extends LinearOpMode {
     private DcMotorEx esteira;
     private DcMotor intake;
     private CRServo servoInt;
-
+    private DcMotor teste;
 
     ElapsedTime tempoDecorrido = new ElapsedTime();
 
