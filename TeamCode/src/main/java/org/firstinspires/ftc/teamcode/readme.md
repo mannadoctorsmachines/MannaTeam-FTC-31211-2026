@@ -8,7 +8,6 @@ git push
 
 
 
-
 Welcome!
 
 This module, TeamCode, is the place where you will write/paste the code for your team's
