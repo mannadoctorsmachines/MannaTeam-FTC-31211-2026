@@ -9,10 +9,10 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class FuncoesRobo {
     DcMotor rodaEsquerda, rodaDireita;
     DcMotorEx esteira;
-    double esteiraRPM;
     ElapsedTime tempoDecorrido = new ElapsedTime();
-
     LinearOpMode opMode;
+    double ticksPorRevolucao = 28.0;
+
     static final double COUNTS_PER_MOTOR_REV = 28;  //
     static final double DRIVE_GEAR_REDUCTION = 12.0;   //
     static final double WHEEL_DIAMETER_METERS = 0.15; //
@@ -20,15 +20,16 @@ public class FuncoesRobo {
 
     //static final double COUNTS_PER_METER = 47560;
 
-    public FuncoesRobo(LinearOpMode opMode, DcMotor right, DcMotor left){
+    public FuncoesRobo(LinearOpMode opMode, DcMotor right, DcMotor left, DcMotorEx esteira){
         this.opMode = opMode;
         this.rodaDireita = right;
         this.rodaEsquerda = left;
+        this.esteira = esteira;
     }
 
-    public void RPM(){
-        double ticksPorSegundo = esteira.getVelocity(); // velocidade atual em ticks/s
-        esteiraRPM = Math.abs((ticksPorSegundo / 28.0) * 60.0); // converte pra RPM
+    public double getRpm(){
+        double ticksPorSegundo = esteira.getVelocity();  // retorna ticks/s
+        return Math.abs((ticksPorSegundo / ticksPorRevolucao) * 60.0);
     }
 
     public void encoderDrive(double speed, double leftMeters, double rightMeters, double timeoutS) {
@@ -66,5 +67,9 @@ public class FuncoesRobo {
         }
     }
 
+
+/* OBSERVAÇÔES: Um encoder é um dispositivo eletromecânico ou uma função que converte um movimento físico
+(como rotação ou deslocamento linear) em um sinal elétrico, geralmente na forma de pulsos
+ */
 
 
