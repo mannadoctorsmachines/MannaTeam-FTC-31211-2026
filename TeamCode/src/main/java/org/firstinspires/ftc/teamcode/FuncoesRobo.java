@@ -27,6 +27,8 @@ public class FuncoesRobo {
         this.esteira = esteira;
     }
 
+
+
     public double getRpm(){
         double ticksPorSegundo = esteira.getVelocity();  // retorna ticks/s
         return Math.abs((ticksPorSegundo / ticksPorRevolucao) * 60.0);
