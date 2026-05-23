@@ -41,6 +41,8 @@ public class NovoTeleop extends OpMode {
         distanceCalculator = new CalcDistAlvo();
         shooterTable = new ShooterLista();
 
+        // Inicializa todos os sistemas usando os nomes configurados no hardwareMap
+        // Se algum nome de motor, servo ou câmera estiverem diferentes no Driver Hub, o erro provavelmente vai aparecer por aqui
         drive.init(hardwareMap);
         camera.init(hardwareMap);
         turret.init(hardwareMap);
@@ -54,24 +56,30 @@ public class NovoTeleop extends OpMode {
 
     @Override
     public void loop() {
-        updateCameraAndTurret();
+        // Atualiza os componentes do robô
         updateDrive();
+        updateCameraAndTurret();
         updateShooter();
         updateFeeder();
         sendTelemetry();
     }
 
     private void updateCameraAndTurret() {
+        // Atualiza as informações da câmera antes de usar os dados da AprilTag.
         camera.update();
 
+        // Gamepad2 Y ativa o modo de tracking da torreta.
         if (gamepad2.y) {
             turret.enableTracking();
         }
 
+        // Gamepad2 X desativa o tracking da torreta.
         if (gamepad2.x) {
             turret.disableTracking();
         }
 
+        // Envia para a torreta se existe alvo e qual é o ângulo horizontal até ele.
+        // A torreta usa esse ângulo para tentar centralizar a câmera na AprilTag.
         turret.updateTracking(
                 camera.hasTarget(),
                 camera.getBearingDegrees()
@@ -79,29 +87,37 @@ public class NovoTeleop extends OpMode {
     }
 
     private void updateDrive() {
+        // O eixo Y do controle vem invertido no FTC.
+        // Por isso usamos o sinal negativo para frente ser positivo.
         double forward = -gamepad1.left_stick_y;
+
+        // O eixo X do analógico direito controla a rotação do robô.
         double turn = gamepad1.right_stick_x;
 
         double speedMultiplier = RConstants.DRIVE_POWER_NORMAL;
 
-/*        if (gamepad1.left_bumper) {
+        /*
+        // Modo lento e modo turbo.
+        // Pode ser útil reativar depois para facilitar manobras finas.
+        if (gamepad1.left_bumper) {
             speedMultiplier = RConstants.DRIVE_POWER_SLOW;
         }
 
         if (gamepad1.right_bumper) {
             speedMultiplier = RConstants.DRIVE_POWER_TURBO;
         }
-*/
+        */
 
+        // Move o robô no estilo arcade:
+        // um eixo controla frente/ré e outro controla o giro.
         drive.driveArcade(forward, turn, speedMultiplier);
     }
-
-
 
     private void updateShooter() {
         boolean autoShooterButton = gamepad2.right_bumper;
         boolean manualShooterButton = gamepad2.left_bumper;
 
+        // Botão de parada rápida do shooter.
         if (gamepad2.b) {
             shooter.stop();
             return;
@@ -109,49 +125,69 @@ public class NovoTeleop extends OpMode {
 
         if (autoShooterButton) {
             if (camera.hasTarget()) {
+                // Pega a distância medida pela AprilTag em polegadas.
                 double aprilTagRangeInches = camera.getRangeInches();
 
+                // Converte/ajusta a distância da câmera para a distância real usada pelo shooter.
                 lastShooterDistanceCm = distanceCalculator.getShooterDistanceCm(aprilTagRangeInches);
+
+                // Usa a distância calculada para escolher o RPM ideal.
                 lastTargetRPM = shooterTable.getRPMForDistance(lastShooterDistanceCm);
 
+                // Manda o shooter tentar atingir o RPM calculado.
                 shooter.setRPM(lastTargetRPM);
 
+                // Detecta apenas o primeiro instante em que o botão foi apertado.
+                // Isso evita empurrar várias bolinhas enquanto o botão está segurado.
                 boolean buttonJustPressed = autoShooterButton && !lastShooterButton;
+
+                // Verifica se a mira está dentro da tolerância configurada.
                 boolean aimed = Math.abs(camera.getBearingDegrees()) <= RConstants.AIM_TOLERANCE_DEGREES;
+
+                // Verifica se o shooter já chegou perto do RPM desejado.
                 boolean shooterReady = shooter.isAtTargetRPM();
 
+                // Só alimenta uma bolinha se o botão acabou de ser apertado,
+                // a mira está alinhada e o shooter chegou no RPM certo.
                 if (buttonJustPressed && aimed && shooterReady) {
                     feeder.pushOne();
                 }
             } else {
-
+                // Se o modo automático estiver ativo, mas não houver AprilTag,
+                // usa o RPM padrão como alternativa.
                 lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
                 shooter.setRPM(lastTargetRPM);
             }
         } else if (manualShooterButton) {
-
+            // Modo manual: gira o shooter no RPM padrão, sem depender da câmera.
             lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
             shooter.setRPM(lastTargetRPM);
         } else {
-
-             //Se quiser que o shooter continue girando depois de soltar o botão, remova esta linha.
-
+            // Se nenhum botão de shooter estiver pressionado, o shooter para.
+            // Para competição, talvez seja melhor trocar isso por um sistema de liga/desliga.
             shooter.stop();
         }
 
+        // Salva o estado atual do botão para comparar no próximo loop.
         lastShooterButton = autoShooterButton;
     }
 
     private void updateFeeder() {
+        // Atualiza o mecanismo do feeder.
+        // Provavelmente controla o tempo de movimento do servo/motor.
         feeder.update();
 
         boolean manualFeedButton = gamepad2.a;
+
+        // Detecta o clique único no botão A.
         boolean manualFeedJustPressed = manualFeedButton && !lastManualFeedButton;
 
+        // Empurra uma bolinha manualmente quando o operador aperta A.
         if (manualFeedJustPressed) {
             feeder.pushOne();
         }
 
+        // Salva o estado atual do botão para evitar múltiplos acionamentos.
         lastManualFeedButton = manualFeedButton;
     }
 
@@ -163,6 +199,7 @@ public class NovoTeleop extends OpMode {
         telemetry.addData("Tracking", turret.isTrackingEnabled());
         telemetry.addData("Has AprilTag", camera.hasTarget());
 
+        // Só mostra os dados detalhados da AprilTag se alguma tag estiver visível.
         if (camera.hasTarget()) {
             telemetry.addData("Tag ID", camera.getTargetId());
             telemetry.addData("Range inches", camera.getRangeInches());
@@ -181,6 +218,7 @@ public class NovoTeleop extends OpMode {
 
     @Override
     public void stop() {
+        // Garante que os principais sistemas parem quando o OpMode for encerrado.
         drive.stop();
         shooter.stop();
         turret.stop();

@@ -190,7 +190,7 @@ public class RobotAutoDriveByGyro_Linear extends LinearOpMode {
 
         driveStraight(DRIVE_SPEED, 17.0, -45.0);  // Drive Forward 17" at -45 degrees (12"x and 12"y)
         turnToHeading( TURN_SPEED,  45.0);               // Turn  CCW  to  45 Degrees
-        holdHeading( TURN_SPEED,  45.0, 0.5);    // Hold  45 Deg heading for a 1/2 second
+            holdHeading( TURN_SPEED,  45.0, 0.5);    // Hold  45 Deg heading for a 1/2 second
 
         driveStraight(DRIVE_SPEED, 17.0, 45.0);  // Drive Forward 17" at 45 degrees (-12"x and 12"y)
         turnToHeading( TURN_SPEED,   0.0);               // Turn  CW  to 0 Degrees
@@ -212,18 +212,18 @@ public class RobotAutoDriveByGyro_Linear extends LinearOpMode {
 
     // **********  HIGH Level driving functions.  ********************
 
-    /**
-    *  Drive in a straight line, on a fixed compass heading (angle), based on encoder counts.
-    *  Move will stop if either of these conditions occur:
-    *  1) Move gets to the desired position
-    *  2) Driver stops the OpMode running.
-    *
-    * @param maxDriveSpeed MAX Speed for forward/rev motion (range 0 to +1.0) .
-    * @param distance   Distance (in inches) to move from current position.  Negative distance means move backward.
-    * @param heading      Absolute Heading Angle (in Degrees) relative to last gyro reset.
-    *                   0 = fwd. +ve is CCW from fwd. -ve is CW from forward.
-    *                   If a relative angle is required, add/subtract from the current robotHeading.
-    */
+        /**
+        *  Drive in a straight line, on a fixed compass heading (angle), based on encoder counts.
+        *  Move will stop if either of these conditions occur:
+        *  1) Move gets to the desired position
+        *  2) Driver stops the OpMode running.
+        *
+        * @param maxDriveSpeed MAX Speed for forward/rev motion (range 0 to +1.0) .
+        * @param distance   Distance (in inches) to move from current position.  Negative distance means move backward.
+        * @param heading      Absolute Heading Angle (in Degrees) relative to last gyro reset.
+        *                   0 = fwd. +ve is CCW from fwd. -ve is CW from forward.
+        *                   If a relative angle is required, add/subtract from the current robotHeading.
+        */
     public void driveStraight(double maxDriveSpeed,
                               double distance,
                               double heading) {

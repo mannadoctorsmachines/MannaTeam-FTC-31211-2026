@@ -51,13 +51,16 @@ public class DriveSistema {
 
 
     public void driveArcade(double forward, double turn, double speedMultiplier) {
+        // Limita os valores para garantir que nenhuma potência passe do intervalo permitido.
         forward = MathU.clamp(forward, -1.0, 1.0);
         turn = MathU.clamp(turn, -1.0, 1.0);
         speedMultiplier = MathU.clamp(speedMultiplier, 0.0, 1.0);
 
+        // Calcula a potência de cada lado do robô no estilo arcade.
         double leftPower = forward + turn;
         double rightPower = forward - turn;
 
+        // Normaliza as potências para evitar valores maiores que 1.0.
         double max = Math.max(1.0, Math.max(Math.abs(leftPower), Math.abs(rightPower)));
 
         leftPower = (leftPower / max) * speedMultiplier;
@@ -98,6 +101,7 @@ public class DriveSistema {
     }
 
     public double getHeadingDegrees() {
+        // Retorna o ângulo atual do robô usando a IMU.
         return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
     }
 
@@ -122,13 +126,16 @@ public class DriveSistema {
     }
 
     public void encoderDriveCm(double cm, double power) {
+        // Converte centímetros em ticks do encoder.
         int ticks = (int) Math.round(cm * RConstants.TICKS_PER_CM);
 
         resetEncoders();
 
+        // Define a posição alvo dos motores.
         leftMotor.setTargetPosition(ticks);
         rightMotor.setTargetPosition(ticks);
 
+        // Faz os motores andarem até a posição definida.
         setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         power = Math.abs(MathU.clamp(power, 0.0, 1.0));
