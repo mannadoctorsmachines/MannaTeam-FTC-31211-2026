@@ -17,7 +17,6 @@ public class CameraTurret {
 
     private double smoothedBearing = 0.0;
     private boolean firstSample = true;
-    private final double smoothingAlpha = 0.25;
 
     private int lastSeenDirection = 1;
 
@@ -48,27 +47,16 @@ public class CameraTurret {
     }
 
     private void trackTarget(double bearingDegrees) {
-        if (firstSample) {
-            smoothedBearing = bearingDegrees;
-            firstSample = false;
-        } else {
-            smoothedBearing =
-                    (smoothingAlpha * bearingDegrees)
-                            + ((1.0 - smoothingAlpha) * smoothedBearing);
-        }
+        updateSmoothedBearing(bearingDegrees);
 
         if (Math.abs(smoothedBearing) <= RConstants.TURRET_DEADBAND_DEGREES) {
             stop();
             return;
         }
 
-        if (smoothedBearing > 0.0) {
-            lastSeenDirection = 1;
-        } else {
-            lastSeenDirection = -1;
-        }
+        updateLastSeenDirection();
 
-        double power = pid.calculate(0.0, smoothedBearing);
+        double power = pid.calculate(0.0, smoothedBearing); //<---- caso a torreta gire para o lado errado, ajustar o smoothedBearing para negativo(-smoothedBearing)
 
         power = MathU.clamp(
                 power,
@@ -81,6 +69,28 @@ public class CameraTurret {
         }
 
         turretMotor.setPower(power);
+    }
+
+    private void updateSmoothedBearing(double bearingDegrees) {
+        if (firstSample) {
+            smoothedBearing = bearingDegrees;
+            firstSample = false;
+            return;
+        }
+
+        double smoothingAlpha = 0.25;
+
+        smoothedBearing =
+                (smoothingAlpha * bearingDegrees)
+                        + ((1.0 - smoothingAlpha) * smoothedBearing);
+    }
+
+    private void updateLastSeenDirection() {
+        if (smoothedBearing > 0.0) {
+            lastSeenDirection = 1;
+        } else {
+            lastSeenDirection = -1;
+        }
     }
 
     private void searchTarget() {
@@ -104,6 +114,8 @@ public class CameraTurret {
     }
 
     public void stop() {
-        turretMotor.setPower(0.0);
+        if (turretMotor != null) {
+            turretMotor.setPower(0.0);
+        }
     }
 }

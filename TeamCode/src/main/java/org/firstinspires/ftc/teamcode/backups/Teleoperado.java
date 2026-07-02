@@ -27,8 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.firstinspires.ftc.teamcode;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+package org.firstinspires.ftc.teamcode.backups;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
@@ -58,7 +57,6 @@ public class Teleoperado extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
-    private CRServo conveorServo = null;
     private DcMotorEx esteira = null;
     private DcMotor intake  = null;
     private CRServo ServoInt = null;
@@ -112,6 +110,8 @@ public class Teleoperado extends LinearOpMode {
             leftPower = Range.clip(drive + turn, -1.0, 1.0);
             rightPower = Range.clip(drive - turn, -1.0, 1.0);
             telemetry.addData("Modo", "DIREÇÃO MANUAL");
+
+
 
             if (gamepad1.y) {
 

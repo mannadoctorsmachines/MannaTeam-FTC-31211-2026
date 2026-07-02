@@ -10,7 +10,6 @@ import org.firstinspires.ftc.teamcode.util.MathU;
 public class ShooterSistema {
 
     private DcMotorEx shooterMotor;
-
     private double targetRPM = 0.0;
 
     public void init(HardwareMap hardwareMap) {
@@ -18,6 +17,9 @@ public class ShooterSistema {
 
         shooterMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        // Shooter geralmente fica melhor em FLOAT,
+        // porque ele não tenta frear bruscamente quando para.
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
 
@@ -45,7 +47,11 @@ public class ShooterSistema {
 
     public void stop() {
         targetRPM = 0.0;
-        shooterMotor.setVelocity(0.0);
+
+        if (shooterMotor != null) {
+            shooterMotor.setVelocity(0.0);
+            shooterMotor.setPower(0.0);
+        }
     }
 
     public double getTargetRPM() {
@@ -53,7 +59,12 @@ public class ShooterSistema {
     }
 
     public double getCurrentRPM() {
+        if (shooterMotor == null) {
+            return 0.0;
+        }
+
         double ticksPerSecond = shooterMotor.getVelocity();
+
         return ticksPerSecondToRPM(ticksPerSecond);
     }
 
@@ -62,8 +73,9 @@ public class ShooterSistema {
             return false;
         }
 
-        return Math.abs(getCurrentRPM() - targetRPM)
-                <= RConstants.SHOOTER_READY_TOLERANCE_RPM;
+        double errorRPM = Math.abs(getCurrentRPM() - targetRPM);
+
+        return errorRPM <= RConstants.SHOOTER_READY_TOLERANCE_RPM;
     }
 
     private double rpmToTicksPerSecond(double rpm) {
