@@ -34,6 +34,10 @@ public class AprilTagCamera {
     public void update() {
         atualDetection = null;
 
+        if (aprilTagProcessor == null) {
+            return;
+        }
+
         List<AprilTagDetection> detections = aprilTagProcessor.getDetections();
 
         if (detections == null || detections.isEmpty()) {
@@ -96,6 +100,10 @@ public class AprilTagCamera {
     public void close() {
         if (visionPortal != null) {
             visionPortal.close();
+            visionPortal = null;
         }
+
+        aprilTagProcessor = null;
+        atualDetection = null;
     }
 }

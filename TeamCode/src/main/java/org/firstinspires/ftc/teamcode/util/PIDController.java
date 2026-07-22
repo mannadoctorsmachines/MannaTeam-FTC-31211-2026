@@ -6,9 +6,12 @@ public class PIDController {
     private double kI;
     private double kD;
 
-    private double integral;
-    private double lastError;
+    private double integral = 0.0;
+    private double lastError = 0.0;
+
     private boolean firstRun = true;
+
+    private double integralLimit = 1_000.0;
 
     public PIDController(double kP, double kI, double kD) {
         setPID(kP, kI, kD);
@@ -18,15 +21,15 @@ public class PIDController {
         double error = target - current;
 
         integral += error;
+        integral = MathU.clamp(integral, -integralLimit, integralLimit);
 
-        double derivative;
-        if (firstRun) {
-            derivative = 0.0;
-            firstRun = false;
-        } else {
+        double derivative = 0.0;
+
+        if (!firstRun) {
             derivative = error - lastError;
         }
 
+        firstRun = false;
         lastError = error;
 
         return (kP * error) + (kI * integral) + (kD * derivative);
@@ -42,6 +45,15 @@ public class PIDController {
         this.kP = kP;
         this.kI = kI;
         this.kD = kD;
+
         reset();
+    }
+
+    public void setIntegralLimit(double integralLimit) {
+        this.integralLimit = Math.abs(integralLimit);
+    }
+
+    public double getLastError() {
+        return lastError;
     }
 }
