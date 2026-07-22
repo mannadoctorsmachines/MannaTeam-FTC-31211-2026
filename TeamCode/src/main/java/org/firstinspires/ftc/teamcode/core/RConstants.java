@@ -13,15 +13,21 @@ public class RConstants {
     public static final String WEBCAM = "Webcam 1";
 
     // Hardware Map - Mecanismos
-    public static final String CAMERA_TURRET = "cameraMotor";
     public static final String SHOOTER = "shooterMotor";
     public static final String FEEDER = "intakeMotor";
 
     // Sistemas ativos no robô; alterar o valor para true quando tiver a expansion hub
     public static final boolean USE_CAMERA = false;
-    public static final boolean USE_TURRET = false;
     public static final boolean USE_SHOOTER = false;
     public static final boolean USE_FEEDER = false;
+
+    // Observação: a torreta (CameraTurret) foi removida do robô.
+    // O shooter agora é fixo e a mira é feita girando o chassi inteiro
+    // (a câmera fornece o bearing do alvo, o drive gira o robô até o heading certo).
+    // A distância até o alvo também é medida pela câmera (range da AprilTag) -
+    // não há sensor ultrassônico no robô.
+    // A versão antiga com torreta continua arquivada em backups/CameraTurret.java
+    // e também deve ser mantida numa branch/tag separada no GitHub.
 
     // Limites gerais
     public static final double MIN_MOTOR_POWER = -1.0;
@@ -44,16 +50,6 @@ public class RConstants {
     public static final double TURN_KI = 0.0;
     public static final double TURN_KD = 0.0015;
 
-    // PID da torreta
-    public static final double TURRET_KP = 0.018;
-    public static final double TURRET_KI = 0.0;
-    public static final double TURRET_KD = 0.002;
-
-    public static final double TURRET_DEADBAND_DEGREES = 1.5;
-    public static final double TURRET_MIN_POWER = 0.05;
-    public static final double TURRET_MAX_POWER = 0.35;
-    public static final double TURRET_SEARCH_POWER = 0.10;
-
     // Shooter
     public static final double SHOOTER_TICKS_PER_REV = 537.7;
     public static final double SHOOTER_GEAR_RATIO = 1.0;
@@ -72,12 +68,16 @@ public class RConstants {
     // Conversões
     public static final double INCH_TO_CM = 2.54;
 
-    // Cálculo de distância do shooter
+    // Cálculo de distância do shooter (medida pela câmera, via range da AprilTag)
+    // Offset entre a câmera e o ponto de saída da bolinha no shooter.
     public static final double CAMERA_TO_SHOOTER_OFFSET_CM = 12.0;
     public static final double TAG_TO_TARGET_OFFSET_CM = 0.0;
 
     // Mira
     public static final double AIM_TOLERANCE_DEGREES = 2.0;
+
+    // Tempo máximo (ms) que o autônomo espera o robô girar em direção ao alvo
+    public static final long AIM_TURN_TIMEOUT_MS = 1500;
 
 
 }

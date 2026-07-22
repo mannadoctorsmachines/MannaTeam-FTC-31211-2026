@@ -4,7 +4,6 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.core.RConstants;
 import org.firstinspires.ftc.teamcode.drive.DriveSistema2;
-import org.firstinspires.ftc.teamcode.mechanisms.CameraTurret;
 import org.firstinspires.ftc.teamcode.mechanisms.IntakeSistema;
 import org.firstinspires.ftc.teamcode.mechanisms.ShooterSistema;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
@@ -17,15 +16,14 @@ public class NovoTeleop extends OpMode {
 
     private DriveSistema2 drive;
     private AprilTagCamera camera;
-    private CameraTurret turret;
     private ShooterSistema shooter;
     private IntakeSistema feeder;
 
     private CalcDistAlvo distanceCalculator;
     private ShooterLista shooterTable;
 
-    private boolean lastShooterButton = false;
     private boolean lastManualFeedButton = false;
+    private boolean shotFiredThisHold = false;
 
     private double lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
     private double lastShooterDistanceCm = 0.0;
@@ -44,11 +42,6 @@ public class NovoTeleop extends OpMode {
             camera.init(hardwareMap);
         }
 
-        if(RConstants.USE_TURRET){
-            turret = new CameraTurret();
-            turret.init(hardwareMap);
-        }
-
         if(RConstants.USE_SHOOTER){
             shooter = new ShooterSistema();
             shooter.init(hardwareMap);
@@ -63,10 +56,11 @@ public class NovoTeleop extends OpMode {
         }
 
         telemetry.addLine("DECODE TeleOp iniciado.");
-        telemetry.addLine("Right bumper gamepad2 = shooter automático.");
+        telemetry.addLine("Shooter fixo - segure o right bumper (gamepad2) perto do gol:");
+        telemetry.addLine("o robo gira sozinho ate alinhar com o QR code, calcula a distancia");
+        telemetry.addLine("e atira na velocidade certa assim que estiver pronto.");
 
         telemetry.addData("Camera", RConstants.USE_CAMERA ? "Ativa" : "Desativo");
-        telemetry.addData("Torreta", RConstants.USE_TURRET ? "Ativa" : "Desativo");
         telemetry.addData("Shooter", RConstants.USE_SHOOTER ? "Ativa" : "Desativo");
         telemetry.addData("Feeder", RConstants.USE_FEEDER ? "Ativa" : "Desativo");
 
@@ -75,11 +69,12 @@ public class NovoTeleop extends OpMode {
 
     @Override
     public void loop() {
-        // Atualiza os componentes do robô
-        updateDrive();
-        if(RConstants.USE_CAMERA && RConstants.USE_TURRET){
-            updateCameraAndTurret();
+        // Atualiza a câmera antes do drive, pra mira automática usar o bearing mais recente.
+        if(RConstants.USE_CAMERA){
+            updateCamera();
         }
+
+        updateDrive();
 
         if(RConstants.USE_SHOOTER){
             updateShooter();
@@ -113,33 +108,33 @@ public class NovoTeleop extends OpMode {
             speedMultiplier = RConstants.DRIVE_POWER_TURBO;
         }
 
+        // Sem torreta: enquanto o botão de shooter automático (gamepad2) estiver
+        // segurado e a câmera estiver vendo o QR code/AprilTag, o próprio chassi
+        // gira sozinho até apontar pro gol. O piloto ainda controla axial/lateral
+        // (pode se aproximar ou ajustar posição), só o giro (yaw) é sobrescrito.
+        boolean autoAimActive = RConstants.USE_CAMERA
+                && RConstants.USE_SHOOTER
+                && gamepad2.right_bumper
+                && camera.hasTarget();
+
+        if (autoAimActive) {
+            double targetHeadingDegrees = drive.getHeadingDegrees() + camera.getBearingDegrees();
+            yaw = drive.getTurnPowerToHeading(targetHeadingDegrees);
+        }
+
         drive.driveMecanum(axial, lateral, yaw, speedMultiplier);
     }
 
 
-    private void updateCameraAndTurret() {
+    private void updateCamera() {
         camera.update();
-        // Gamepad2 Y ativa o modo de tracking da torreta.
-        if (gamepad2.y) {
-            turret.enableTracking();
-        }
-        // Gamepad2 X desativa o tracking da torreta.
-        if (gamepad2.x) {
-            turret.disableTracking();
-        }
-        // Envia para a torreta se existe alvo e qual é o ângulo horizontal até ele.
-        // A torreta usa esse ângulo para tentar centralizar a câmera na AprilTag.
-        turret.updateTracking(
-                camera.hasTarget(),
-                camera.getBearingDegrees()
-        );
     }
 
     private void updateShooter() {
         boolean autoShooterButton = gamepad2.right_bumper;
         boolean manualShooterButton = gamepad2.left_bumper;
 
-         //Botão de parada rápida do shooter.
+        //Botão de parada rápida do shooter.
         if (gamepad2.b) {
             shooter.stop();
             return;
@@ -159,24 +154,24 @@ public class NovoTeleop extends OpMode {
                 // Manda o shooter tentar atingir o RPM calculado.
                 shooter.setRPM(lastTargetRPM);
 
-                // Detecta apenas o primeiro instante em que o botão foi apertado.
-                // Isso evita empurrar várias bolinhas enquanto o botão está segurado.
-                boolean buttonJustPressed = autoShooterButton && !lastShooterButton;
-
-                // Verifica se a mira está dentro da tolerância configurada.
+                // Sem torreta: enquanto o botão está segurado, o chassi gira sozinho
+                // (ver updateDrive/autoAimActive) até apontar pro gol usando o bearing
+                // da AprilTag. "Aimed" confirma que esse giro já convergiu.
                 boolean aimed = Math.abs(camera.getBearingDegrees()) <= RConstants.AIM_TOLERANCE_DEGREES;
 
                 // Verifica se o shooter já chegou perto do RPM desejado.
                 boolean shooterReady = shooter.isAtTargetRPM();
 
-                // Só alimenta uma bolinha se o botão acabou de ser apertado,
-                // a mira está alinhada e o shooter chegou no RPM certo.
+                // Dispara assim que o chassi terminar de girar e o shooter estiver no RPM certo -
+                // só uma vez por "segurada" do botão (o giro demora um pouco, então não dá
+                // mais pra disparar só no instante exato do aperto do botão).
                 if (RConstants.USE_FEEDER
-                        && buttonJustPressed
+                        && !shotFiredThisHold
                         && aimed
                         && shooterReady)
                 {
                     feeder.pushOne();
+                    shotFiredThisHold = true;
                 }
 
             } else {
@@ -190,15 +185,14 @@ public class NovoTeleop extends OpMode {
             // Modo manual: gira o shooter no RPM padrão, sem depender da câmera.
             lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
             shooter.setRPM(lastTargetRPM);
+            shotFiredThisHold = false;
 
         } else {
             // Se nenhum botão de shooter estiver pressionado, o shooter para.
             // Para competição, talvez seja melhor trocar isso por um sistema de liga/desliga.
             shooter.stop();
+            shotFiredThisHold = false;
         }
-
-        // Salva o estado atual do botão para comparar no próximo loop.
-        lastShooterButton = autoShooterButton;
     }
 
     private void updateFeeder() {
@@ -227,26 +221,23 @@ public class NovoTeleop extends OpMode {
 
         telemetry.addLine("----- SISTEMAS -----");
         telemetry.addData("Camera", RConstants.USE_CAMERA ? "Ativa" : "Desativo");
-        telemetry.addData("Torreta", RConstants.USE_TURRET ? "Ativa" : "Desativo");
         telemetry.addData("Shooter", RConstants.USE_SHOOTER ? "Ativa" : "Desativo");
         telemetry.addData("Feeder", RConstants.USE_FEEDER ? "Ativa" : "Desativo");
 
         if(RConstants.USE_CAMERA) {
-            telemetry.addLine("----- CAMERA -----");
+            telemetry.addLine("----- CAMERA (mira + distância) -----");
             telemetry.addData("Has AprilTag", camera.hasTarget());
 
             // Só mostra os dados detalhados da AprilTag se alguma tag estiver visível.
+            // Sem torreta: enquanto o botão de shooter automático estiver segurado,
+            // o próprio chassi gira sozinho usando esse Bearing.
             if (camera.hasTarget()) {
                 telemetry.addData("Tag ID", camera.getTargetId());
                 telemetry.addData("Range inches", camera.getRangeInches());
                 telemetry.addData("Bearing", camera.getBearingDegrees());
                 telemetry.addData("Yaw", camera.getYawDegrees());
+                telemetry.addData("Mira automática ativa", gamepad2.right_bumper);
             }
-        }
-
-        if(RConstants.USE_TURRET) {
-            telemetry.addLine("----- TORRETA -----");
-            telemetry.addData("Tracking", turret.isTrackingEnabled());
         }
 
         if(RConstants.USE_SHOOTER) {
@@ -268,10 +259,6 @@ public class NovoTeleop extends OpMode {
 
         if(RConstants.USE_SHOOTER && shooter != null){
             shooter.stop();
-        }
-
-        if(RConstants.USE_TURRET && turret != null){
-            turret.stop();
         }
 
         if(RConstants.USE_CAMERA && camera != null){

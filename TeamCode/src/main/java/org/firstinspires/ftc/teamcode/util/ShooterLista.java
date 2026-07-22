@@ -10,8 +10,19 @@ public class ShooterLista {
      * A lógica é:
      * distância do shooter até o alvo em cm -> RPM necessário para acertar.
      *
-     * Esses valores são apenas base.
-     * O ideal é testar no robô real e ajustar cada ponto da tabela.
+     * A distância vem do range da AprilTag (via CalcDistAlvo). Com a torreta
+     * removida (shooter fixo, sem ajuste fino de ângulo), os valores abaixo
+     * são apenas um PONTO DE PARTIDA.
+     *
+     * TODO (calibração obrigatória no robô real, com o shooter fixo):
+     *   1. Posicionar o robô a cada distância da tabela (medindo com a
+     *      própria câmera/AprilTag, não fita métrica, para bater com
+     *      o valor que o código vai ler em partida).
+     *   2. Testar RPMs até acertar o alvo de forma consistente (várias
+     *      bolinhas seguidas) e anotar o valor que funcionou.
+     *   3. Substituir os valores de RPM_VALUES abaixo pelos medidos.
+     *   4. Adicionar pontos extras se o alcance de jogo cobrir distâncias
+     *      fora do intervalo 70cm-190cm testado aqui.
      */
 
     private static final double[] DISTANCES_CM = {

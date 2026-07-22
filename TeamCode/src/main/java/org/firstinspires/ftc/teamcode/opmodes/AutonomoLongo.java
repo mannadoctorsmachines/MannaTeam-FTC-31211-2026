@@ -5,20 +5,30 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.core.RConstants;
 import org.firstinspires.ftc.teamcode.drive.DriveSistema2;
-import org.firstinspires.ftc.teamcode.mechanisms.CameraTurret;
 import org.firstinspires.ftc.teamcode.mechanisms.IntakeSistema;
 import org.firstinspires.ftc.teamcode.mechanisms.ShooterSistema;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
 import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
 
+/**
+ * Autônomo adaptado para shooter fixo (sem torreta).
+ *
+ * A mira agora é feita girando o chassi inteiro: a câmera fornece o bearing
+ * até a AprilTag, esse bearing vira um heading alvo (heading atual + bearing)
+ * e o drive gira o robô até lá usando o PID de giro que já existia
+ * (DriveSistema2.turnToHeading), a mesma lógica usada para virar em outras
+ * partes do autônomo.
+ *
+ * A distância até o alvo continua vindo da câmera (range da AprilTag),
+ * como já era antes - o robô não tem sensor ultrassônico.
+ */
 @Autonomous(name = "DECODE Auto Completo", group = "Competition")
 public class AutonomoLongo extends LinearOpMode {
 
     private DriveSistema2 drive;
 
     private AprilTagCamera camera;
-    private CameraTurret turret;
     private ShooterSistema shooter;
     private IntakeSistema feeder;
 
@@ -29,9 +39,8 @@ public class AutonomoLongo extends LinearOpMode {
     public void runOpMode() {
         initSystems();
 
-        telemetry.addLine("Autônomo DECODE pronto.");
+        telemetry.addLine("Autônomo DECODE pronto (shooter fixo).");
         telemetry.addData("Camera", RConstants.USE_CAMERA ? "Ativa" : "Desativada");
-        telemetry.addData("Turret", RConstants.USE_TURRET ? "Ativa" : "Desativada");
         telemetry.addData("Shooter", RConstants.USE_SHOOTER ? "Ativo" : "Desativado");
         telemetry.addData("Feeder", RConstants.USE_FEEDER ? "Ativo" : "Desativado");
         telemetry.update();
@@ -47,14 +56,14 @@ public class AutonomoLongo extends LinearOpMode {
 
         boolean foundTag = false;
 
-        if (RConstants.USE_CAMERA && RConstants.USE_TURRET) {
+        if (RConstants.USE_CAMERA) {
             foundTag = searchForAprilTag(2500);
         }
 
         double targetRPM = RConstants.DEFAULT_SHOOTER_RPM;
 
         if (foundTag) {
-            aimAtAprilTag(1800);
+            aimByTurningChassis(RConstants.AIM_TURN_TIMEOUT_MS);
 
             double aprilTagRangeInches = camera.getRangeInches();
             double shooterDistanceCm =
@@ -105,11 +114,6 @@ public class AutonomoLongo extends LinearOpMode {
             camera.init(hardwareMap);
         }
 
-        if (RConstants.USE_TURRET) {
-            turret = new CameraTurret();
-            turret.init(hardwareMap);
-        }
-
         if (RConstants.USE_SHOOTER) {
             shooter = new ShooterSistema();
             shooter.init(hardwareMap);
@@ -141,7 +145,7 @@ public class AutonomoLongo extends LinearOpMode {
     }
 
     private boolean searchForAprilTag(long timeoutMs) {
-        if (camera == null || turret == null) {
+        if (camera == null) {
             return false;
         }
 
@@ -151,11 +155,6 @@ public class AutonomoLongo extends LinearOpMode {
                 && System.currentTimeMillis() - startTime < timeoutMs) {
 
             camera.update();
-
-            turret.updateTracking(
-                    camera.hasTarget(),
-                    camera.getBearingDegrees()
-            );
 
             telemetry.addLine("Procurando AprilTag...");
             telemetry.addData("Has target", camera.hasTarget());
@@ -171,8 +170,12 @@ public class AutonomoLongo extends LinearOpMode {
         return false;
     }
 
-    private void aimAtAprilTag(long timeoutMs) {
-        if (camera == null || turret == null) {
+    /**
+     * Gira o chassi inteiro (sem torreta) até o bearing da AprilTag
+     * ficar dentro da tolerância de mira configurada.
+     */
+    private void aimByTurningChassis(long timeoutMs) {
+        if (camera == null) {
             return;
         }
 
@@ -183,28 +186,34 @@ public class AutonomoLongo extends LinearOpMode {
 
             camera.update();
 
-            turret.updateTracking(
-                    camera.hasTarget(),
-                    camera.getBearingDegrees()
-            );
+            if (!camera.hasTarget()) {
+                drive.stop();
+                sleep(20);
+                continue;
+            }
 
-            boolean aimed =
-                    camera.hasTarget()
-                            && Math.abs(camera.getBearingDegrees())
-                            <= RConstants.AIM_TOLERANCE_DEGREES;
+            double bearingDegrees = camera.getBearingDegrees();
 
-            telemetry.addLine("Mirando na AprilTag...");
-            telemetry.addData("Has target", camera.hasTarget());
-            telemetry.addData("Bearing", camera.getBearingDegrees());
+            boolean aimed = Math.abs(bearingDegrees) <= RConstants.AIM_TOLERANCE_DEGREES;
+
+            telemetry.addLine("Mirando (girando o chassi)...");
+            telemetry.addData("Bearing", bearingDegrees);
             telemetry.addData("Aimed", aimed);
             telemetry.update();
 
             if (aimed) {
+                drive.stop();
                 return;
             }
 
+            // Heading alvo = heading atual + bearing até a tag.
+            double targetHeadingDegrees = drive.getHeadingDegrees() + bearingDegrees;
+            drive.turnToHeading(targetHeadingDegrees);
+
             sleep(20);
         }
+
+        drive.stop();
     }
 
     private void waitForShooterReady(long timeoutMs) {
@@ -270,10 +279,6 @@ public class AutonomoLongo extends LinearOpMode {
 
         if (shooter != null) {
             shooter.stop();
-        }
-
-        if (turret != null) {
-            turret.stop();
         }
 
         if (camera != null) {
