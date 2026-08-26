@@ -2,12 +2,14 @@ package org.firstinspires.ftc.teamcode.opmodes;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.teamcode.core.RConstants;
 import org.firstinspires.ftc.teamcode.drive.DriveSistema2;
 import org.firstinspires.ftc.teamcode.mechanisms.IntakeSistema;
 import org.firstinspires.ftc.teamcode.mechanisms.ShooterSistema;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
+import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
 import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
 
@@ -52,7 +54,14 @@ public class AutonomoLongo extends LinearOpMode {
             return;
         }
 
-        driveForwardCm(10, 0.45, 1000);
+
+        //Teste de posição:
+        driveForwardCm(-45, -45, 0.45, 2000);
+
+        //Teste de giro:
+        turnRobotDegrees(90, 1000);
+
+
 
         boolean foundTag = false;
 
@@ -125,8 +134,8 @@ public class AutonomoLongo extends LinearOpMode {
         }
     }
 
-    private void driveForwardCm(double cm, double power, long timeoutMs) {
-        drive.encoderDriveCm(cm, power);
+    private void driveForwardCm(double cm, double cm2, double power, long timeoutMs) {
+        drive.encoderTurnCm(cm, cm2, power);
 
         long startTime = System.currentTimeMillis();
 
@@ -136,12 +145,51 @@ public class AutonomoLongo extends LinearOpMode {
 
             telemetry.addLine("Andando com encoder...");
             telemetry.addData("cm", cm);
+            telemetry.addData("cm", cm2);
             telemetry.update();
 
             sleep(20);
         }
 
         drive.stop();
+    }
+
+    private void turnRobotToHeading(double targetHeadingDegrees, long timeoutMs) {
+        // Permite controlar os motores diretamente pelo PID.
+        drive.setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        long startTime = System.currentTimeMillis();
+
+        while (opModeIsActive()
+                && System.currentTimeMillis() - startTime < timeoutMs) {
+
+            double currentHeading = drive.getHeadingDegrees();
+
+            double headingError = MathU.normalizarAngulo(
+                    targetHeadingDegrees - currentHeading
+            );
+
+            telemetry.addLine("Virando o robô...");
+            telemetry.addData("Ângulo atual", currentHeading);
+            telemetry.addData("Ângulo desejado", targetHeadingDegrees);
+            telemetry.addData("Erro", headingError);
+            telemetry.update();
+
+            if (Math.abs(headingError) <= RConstants.TURN_TOLERANCE_DEGREES) {
+                break;
+            }
+
+            drive.turnToHeading(targetHeadingDegrees);
+
+            sleep(20);
+        }
+
+        drive.stop();
+    }
+
+    private void turnRobotDegrees(double degrees, long timeoutMs){
+        double targetHeading = drive.getHeadingDegrees() + degrees;
+        turnRobotToHeading(targetHeading, timeoutMs);
     }
 
     private boolean searchForAprilTag(long timeoutMs) {
@@ -179,6 +227,10 @@ public class AutonomoLongo extends LinearOpMode {
             return;
         }
 
+        // O movimento anterior deixou os motores em RUN_TO_POSITION.
+        // Para girar pelo PID, precisamos devolver o controle direto de potência.
+        drive.setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
         long startTime = System.currentTimeMillis();
 
         while (opModeIsActive()
@@ -194,9 +246,11 @@ public class AutonomoLongo extends LinearOpMode {
 
             double bearingDegrees = camera.getBearingDegrees();
 
-            boolean aimed = Math.abs(bearingDegrees) <= RConstants.AIM_TOLERANCE_DEGREES;
+            boolean aimed =
+                    Math.abs(bearingDegrees)
+                            <= RConstants.AIM_TOLERANCE_DEGREES;
 
-            telemetry.addLine("Mirando (girando o chassi)...");
+            telemetry.addLine("Mirando com o chassi...");
             telemetry.addData("Bearing", bearingDegrees);
             telemetry.addData("Aimed", aimed);
             telemetry.update();
@@ -206,8 +260,9 @@ public class AutonomoLongo extends LinearOpMode {
                 return;
             }
 
-            // Heading alvo = heading atual + bearing até a tag.
-            double targetHeadingDegrees = drive.getHeadingDegrees() + bearingDegrees;
+            double targetHeadingDegrees =
+                    drive.getHeadingDegrees() + bearingDegrees;
+
             drive.turnToHeading(targetHeadingDegrees);
 
             sleep(20);
@@ -252,20 +307,24 @@ public class AutonomoLongo extends LinearOpMode {
         for (int i = 0; i < amount && opModeIsActive(); i++) {
             feeder.pushOne();
 
-            long startTime = System.currentTimeMillis();
-
-            while (opModeIsActive()
-                    && System.currentTimeMillis() - startTime < delayBetweenShotsMs) {
-
+            // Espera o movimento de um disparo terminar.
+            while (opModeIsActive() && feeder.isBusy()) {
                 feeder.update();
 
                 telemetry.addData("Disparando", i + 1);
-                telemetry.addData("de", amount);
+                telemetry.addData("Total", amount);
                 telemetry.update();
 
                 sleep(20);
             }
+
+            // Intervalo adicional antes do próximo disparo.
+            if (i < amount - 1) {
+                sleep(delayBetweenShotsMs);
+            }
         }
+
+        feeder.rest();
     }
 
     private void stopAll() {

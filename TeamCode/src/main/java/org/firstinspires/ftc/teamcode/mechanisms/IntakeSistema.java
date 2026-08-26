@@ -11,10 +11,14 @@ public class IntakeSistema {
     private DcMotorEx feederMotor;
 
     private boolean pushing = false;
+    private boolean continuous = false;
     private long pushStartTime = 0;
 
     public void init(HardwareMap hardwareMap) {
-        feederMotor = hardwareMap.get(DcMotorEx.class, RConstants.FEEDER);
+        feederMotor = hardwareMap.get(
+                DcMotorEx.class,
+                RConstants.FEEDER
+        );
 
         feederMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         feederMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -23,20 +27,24 @@ public class IntakeSistema {
     }
 
     public void update() {
-        if (!pushing) {
+        // No modo contínuo, não usa o temporizador.
+        if (continuous || !pushing) {
             return;
         }
 
-        long elapsedTime = System.currentTimeMillis() - pushStartTime;
+        long elapsedTime =
+                System.currentTimeMillis() - pushStartTime;
 
         if (elapsedTime >= RConstants.INTAKE_PUSH_TIME_MS) {
             rest();
-            pushing = false;
         }
     }
 
+    /**
+     * Alimentação temporizada: empurra apenas uma bola.
+     */
     public void pushOne() {
-        if (pushing) {
+        if (pushing || continuous) {
             return;
         }
 
@@ -45,16 +53,39 @@ public class IntakeSistema {
         pushing = true;
     }
 
+    /**
+     * Mantém o feeder funcionando continuamente.
+     */
+    public void startContinuous() {
+        continuous = true;
+        pushing = true;
+
+        feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
+    }
+
+    /**
+     * Para o funcionamento contínuo.
+     */
+    public void stopContinuous() {
+        continuous = false;
+        rest();
+    }
+
     public void rest() {
+        pushing = false;
         feederMotor.setPower(RConstants.INTAKE_REST_POWER);
     }
 
     public void stop() {
-        pushing = false;
+        continuous = false;
         rest();
     }
 
     public boolean isBusy() {
         return pushing;
+    }
+
+    public boolean isContinuous() {
+        return continuous;
     }
 }

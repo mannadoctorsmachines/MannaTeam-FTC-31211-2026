@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.opmodes;
 
+import static android.os.SystemClock.sleep;
+
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.core.RConstants;
@@ -11,7 +13,7 @@ import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
 import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
 
-@TeleOp(name = "TeleOp Completo", group = "Competition")
+@TeleOp(name = "DECODE TeleOp Completo", group = "Competition")
 public class NovoTeleop extends OpMode {
 
     private DriveSistema2 drive;
@@ -27,6 +29,11 @@ public class NovoTeleop extends OpMode {
 
     private double lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
     private double lastShooterDistanceCm = 0.0;
+
+    private boolean auto = false;
+
+    private boolean ligado = false;
+    private boolean ultimoB = false;
 
     @Override
     public void init() {
@@ -86,6 +93,19 @@ public class NovoTeleop extends OpMode {
         sendTelemetry();
     }
 
+    private void driveForwardCm(double cm, double cm2, double power, long timeoutMs) {
+        drive.encoderTurnCm(cm, cm2, power);
+
+        long startTime = System.currentTimeMillis();
+
+        while (drive.isBusy() && System.currentTimeMillis() - startTime < timeoutMs) {
+
+            sleep(20);
+        }
+
+        drive.stop();
+    }
+
     private void updateDrive() {
         // O eixo Y do controle vem invertido no FTC.
         // Por isso usamos o sinal negativo para frente ser positivo.
@@ -94,19 +114,68 @@ public class NovoTeleop extends OpMode {
         // O eixo X do analógico direito controla a rotação do robô.
         //double turn = gamepad1.right_stick_x;
 
-        double axial = MathU.aplicarZonaNeutra(-gamepad1.left_stick_y, 0.05);
-        double lateral = MathU.aplicarZonaNeutra(gamepad1.left_stick_x, 0.05) * 1.1;
-        double yaw = MathU.aplicarZonaNeutra(gamepad1.right_stick_x, 0.05);
+        double axial;
+        double lateral;
+        double yaw;
 
-        double speedMultiplier = RConstants.DRIVE_POWER_NORMAL;
+
+        // Controle pelo D-pad
+        if (gamepad1.dpad_up) {
+            axial = 1;
+            lateral = 0;
+            yaw = 0;
+        }
+        else if (gamepad1.dpad_down) {
+            axial = -1;
+            lateral = 0;
+            yaw = 0;
+        }
+        else if (gamepad1.dpad_left) {
+            axial = 0;
+            lateral = -1;
+            yaw = 0;
+        }
+        else if (gamepad1.dpad_right) {
+            axial = 0;
+            lateral = 1;
+            yaw = 0;
+        }
+        else {
+            // Controle normal pelo joystick
+            axial = MathU.aplicarZonaNeutra(-gamepad1.left_stick_y, 0.55);
+            lateral = MathU.aplicarZonaNeutra(gamepad1.left_stick_x, 0.55) * 1.1;
+            yaw = MathU.aplicarZonaNeutra(gamepad1.right_stick_x, 0.55);
+        }
+
+//        if (gamepad1.b && !ultimoB) {
+//            auto = !auto; // liga/desliga
+//        }
+
+        ligado = !ligado;
+
+//        ultimoB = gamepad1.b;
+
+//        if (auto) {
+//            driveForwardCm(10, 10, 0.45, 1000);
+//            driveForwardCm(-10, -10, 0.45,1000);
+//        }
+
+        if (gamepad1.b && ligado){
+            driveForwardCm(10, 10, 0.45, 1000);
+            driveForwardCm(-10, -10, 0.45,1000);
+        } else {
+            drive.stop();
+        }
+
+        double speedMultiplier = RConstants.DRIVE_POWER_TURBO;
 
         if (gamepad1.left_bumper) {
-            speedMultiplier = RConstants.DRIVE_POWER_SLOW;
+            speedMultiplier = RConstants.DRIVE_POWER_NORMAL;
         }
 
-        if (gamepad1.right_bumper) {
-            speedMultiplier = RConstants.DRIVE_POWER_TURBO;
-        }
+//        if (gamepad1.right_bumper) {
+//            speedMultiplier = RConstants.DRIVE_POWER_TURBO;
+//        }
 
         // Sem torreta: enquanto o botão de shooter automático (gamepad2) estiver
         // segurado e a câmera estiver vendo o QR code/AprilTag, o próprio chassi
@@ -131,11 +200,11 @@ public class NovoTeleop extends OpMode {
     }
 
     private void updateShooter() {
-        boolean autoShooterButton = gamepad2.right_bumper;
-        boolean manualShooterButton = gamepad2.left_bumper;
+        boolean autoShooterButton = gamepad2.x;
+        boolean manualShooterButton = gamepad2.right_bumper;
 
         //Botão de parada rápida do shooter.
-        if (gamepad2.b) {
+        if (gamepad2.a) {
             shooter.stop();
             return;
         }
@@ -196,22 +265,15 @@ public class NovoTeleop extends OpMode {
     }
 
     private void updateFeeder() {
-        // Atualiza o mecanismo do feeder.
-        // Provavelmente controla o tempo de movimento do servo/motor.
         feeder.update();
 
-        boolean manualFeedButton = gamepad2.a;
-
-        // Detecta o clique único no botão A.
-        boolean manualFeedJustPressed = manualFeedButton && !lastManualFeedButton;
-
-        // Empurra uma bolinha manualmente quando o operador aperta A.
-        if (manualFeedJustPressed) {
-            feeder.pushOne();
+        // Enquanto A estiver pressionado, o intake continua puxando.
+        if (gamepad2.left_bumper) {
+            feeder.startContinuous();
+        } else if (feeder.isContinuous()) {
+            // Soltou A: volta para a posição/potência de repouso.
+            feeder.stopContinuous();
         }
-
-        // Salva o estado atual do botão para evitar múltiplos acionamentos.
-        lastManualFeedButton = manualFeedButton;
     }
 
     private void sendTelemetry() {
@@ -251,6 +313,7 @@ public class NovoTeleop extends OpMode {
         telemetry.update();
     }
 
+
     public void stop() {
         // Garante que os principais sistemas parem quando o OpMode for encerrado.
         if(drive != null){
@@ -270,3 +333,6 @@ public class NovoTeleop extends OpMode {
         }
     }
 }
+
+
+//

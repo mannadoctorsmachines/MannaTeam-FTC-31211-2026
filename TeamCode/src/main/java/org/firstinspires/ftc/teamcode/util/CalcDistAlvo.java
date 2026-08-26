@@ -20,4 +20,18 @@ public class CalcDistAlvo {
 
         return Math.max(0.0, shooterDistanceCm);
     }
+
+    /**
+     * Distância usada no autônomo quando o robô parte de uma posição conhecida
+     * e se desloca em linha reta na direção do gol usando os encoders.
+     */
+    public double getShooterDistanceFromEncoderCm(
+            double startDistanceToGoalCm,
+            double traveledTowardGoalCm
+    ) {
+        double safeStartDistance = Math.max(0.0, startDistanceToGoalCm);
+        double safeTraveledDistance = Math.max(0.0, traveledTowardGoalCm);
+
+        return Math.max(0.0, safeStartDistance - safeTraveledDistance);
+    }
 }

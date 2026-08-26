@@ -39,7 +39,7 @@ public class DriveSistema2 {
     }
 
     private void configureMotors() {
-        leftFrontMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        leftFrontMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         leftBackMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
         rightFrontMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -129,9 +129,27 @@ public class DriveSistema2 {
         double currentHeading = getHeadingDegrees();
         double error = MathU.normalizarAngulo(targetHeadingDegrees - currentHeading);
 
+        if (Math.abs(error) <= RConstants.TURN_TOLERANCE_DEGREES) {
+            return 0.0;
+        }
+
         double output = turnPID.calculate(0.0, -error);
 
-        return MathU.clamp(output, -0.45, 0.45);
+        output = MathU.clamp(
+                output,
+                -RConstants.TURN_MAX_POWER,
+                RConstants.TURN_MAX_POWER
+        );
+
+        if (Math.abs(output) < RConstants.TURN_MIN_POWER) {
+            output = Math.copySign(RConstants.TURN_MIN_POWER, output);
+        }
+
+        return output;
+    }
+
+    public void resetTurnController() {
+        turnPID.reset();
     }
 
     public void turnToHeading(double targetHeadingDegrees) {
@@ -186,11 +204,57 @@ public class DriveSistema2 {
         setMecanumPowers(power, power, power, power);
     }
 
+    /**
+     * Deslocamento lateral por encoder para rodas mecanum.
+     * Valor positivo desloca para a direita; negativo, para a esquerda.
+     */
+    public void encoderStrafeCm(double cm, double power) {
+        int ticks = (int) Math.round(cm * RConstants.STRAFE_TICKS_PER_CM);
+
+        resetEncoders();
+
+        leftFrontMotor.setTargetPosition(ticks);
+        rightFrontMotor.setTargetPosition(-ticks);
+        leftBackMotor.setTargetPosition(-ticks);
+        rightBackMotor.setTargetPosition(ticks);
+
+        setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        power = Math.abs(MathU.clamp(power, 0.0, 1.0));
+        setMecanumPowers(power, power, power, power);
+    }
+
     public boolean isBusy() {
         return leftFrontMotor.isBusy()
                 || rightFrontMotor.isBusy()
                 || leftBackMotor.isBusy()
                 || rightBackMotor.isBusy();
+    }
+
+    /**
+     * Distância média realmente registrada pelos quatro encoders desde
+     * o último reset. O sinal acompanha o comando enviado ao drive.
+     */
+    public double getAverageEncoderDistanceCm() {
+        double averageTicks = (
+                leftFrontMotor.getCurrentPosition()
+                        + rightFrontMotor.getCurrentPosition()
+                        + leftBackMotor.getCurrentPosition()
+                        + rightBackMotor.getCurrentPosition()
+        ) / 4.0;
+
+        return averageTicks / RConstants.TICKS_PER_CM;
+    }
+
+    public double getAverageStrafeDistanceCm() {
+        double averageStrafeTicks = (
+                leftFrontMotor.getCurrentPosition()
+                        - rightFrontMotor.getCurrentPosition()
+                        - leftBackMotor.getCurrentPosition()
+                        + rightBackMotor.getCurrentPosition()
+        ) / 4.0;
+
+        return averageStrafeTicks / RConstants.STRAFE_TICKS_PER_CM;
     }
 
     public void setRunMode(DcMotor.RunMode mode) {

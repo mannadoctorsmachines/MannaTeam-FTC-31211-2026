@@ -52,6 +52,11 @@ public class AprilTagCamera {
                 continue;
             }
 
+            if (RConstants.TARGET_APRIL_TAG_ID >= 0
+                    && detection.id != RConstants.TARGET_APRIL_TAG_ID) {
+                continue;
+            }
+
             if (detection.ftcPose.range < RangeProximo) {
                 RangeProximo = detection.ftcPose.range;
                 DetectionProxima = detection;
