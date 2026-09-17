@@ -21,8 +21,9 @@ public class AutoVermelhoParede extends AutoBaseSimples {
         }
 
         // ROTA VERMELHA. O giro é oposto ao azul.
+        andarCm(30.0, 0.45);
         virarGraus(-45.0);
-        atirar(335.0, 3);
+        atirar(100.0, 3);
 
         pararTudo();
     }

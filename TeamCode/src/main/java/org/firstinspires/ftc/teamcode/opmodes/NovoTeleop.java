@@ -4,10 +4,13 @@ import static android.os.SystemClock.sleep;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import org.firstinspires.ftc.teamcode.core.RConstants;
-import org.firstinspires.ftc.teamcode.drive.DriveSistema2;
-import org.firstinspires.ftc.teamcode.mechanisms.IntakeSistema;
-import org.firstinspires.ftc.teamcode.mechanisms.ShooterSistema;
+
+import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
+import org.firstinspires.ftc.teamcode.localization.GobildaOdometry;
+import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
@@ -16,10 +19,11 @@ import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
 @TeleOp(name = "DECODE TeleOp Completo", group = "Competition")
 public class NovoTeleop extends OpMode {
 
-    private DriveSistema2 drive;
+    private Drivetrain drive;
     private AprilTagCamera camera;
-    private ShooterSistema shooter;
-    private IntakeSistema feeder;
+    private Shooter shooter;
+    private Intake feeder;
+    private GobildaOdometry odo;
 
     private CalcDistAlvo distanceCalculator;
     private ShooterLista shooterTable;
@@ -41,8 +45,9 @@ public class NovoTeleop extends OpMode {
         // Inicializa todos os sistemas usando os nomes configurados no hardwareMap
         // Se algum nome de motor, servo ou câmera estiverem diferentes no Driver Hub, o erro provavelmente vai aparecer por aqui
 
-        drive = new DriveSistema2();
+        drive = new Drivetrain();
         drive.init(hardwareMap);
+        odo.init(hardwareMap);
 
         if(RConstants.USE_CAMERA){
             camera = new AprilTagCamera();
@@ -50,7 +55,7 @@ public class NovoTeleop extends OpMode {
         }
 
         if(RConstants.USE_SHOOTER){
-            shooter = new ShooterSistema();
+            shooter = new Shooter();
             shooter.init(hardwareMap);
 
             distanceCalculator = new CalcDistAlvo();
@@ -58,9 +63,11 @@ public class NovoTeleop extends OpMode {
         }
 
         if(RConstants.USE_FEEDER){
-            feeder = new IntakeSistema();
+            feeder = new Intake();
             feeder.init(hardwareMap);
         }
+
+
 
         telemetry.addLine("DECODE TeleOp iniciado.");
         telemetry.addLine("Shooter fixo - segure o right bumper (gamepad2) perto do gol:");
@@ -77,12 +84,13 @@ public class NovoTeleop extends OpMode {
     @Override
     public void loop() {
         // Atualiza a câmera antes do drive, pra mira automática usar o bearing mais recente.
-        if(RConstants.USE_CAMERA){
-            updateCamera();
-        }
 
         updateDrive();
 
+
+        if(RConstants.USE_CAMERA){
+            updateCamera();
+        }
         if(RConstants.USE_SHOOTER){
             updateShooter();
         }
@@ -167,10 +175,10 @@ public class NovoTeleop extends OpMode {
             drive.stop();
         }
 
-        double speedMultiplier = RConstants.DRIVE_POWER_TURBO;
+        double speedMultiplier = DrivetrainConfig.DRIVE_POWER_TURBO;
 
         if (gamepad1.left_bumper) {
-            speedMultiplier = RConstants.DRIVE_POWER_NORMAL;
+            speedMultiplier = DrivetrainConfig.DRIVE_POWER_NORMAL;
         }
 
 //        if (gamepad1.right_bumper) {

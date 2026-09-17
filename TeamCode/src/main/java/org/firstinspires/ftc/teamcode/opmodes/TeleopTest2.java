@@ -3,41 +3,56 @@ package org.firstinspires.ftc.teamcode.opmodes;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.core.RConstants;
-import org.firstinspires.ftc.teamcode.drive.DriveSistema2;
-import org.firstinspires.ftc.teamcode.mechanisms.IntakeSistema;
-import org.firstinspires.ftc.teamcode.mechanisms.ShooterSistema;
+import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
+import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
 import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
 
-@TeleOp(name = "TeleopTeste", group = "Competition unofficial")
-public class TeleopTest extends OpMode {
+@TeleOp(name = "Teste do teste", group = "Competition")
+public class TeleopTest2 extends OpMode {
 
-    private DriveSistema2 drive;
+    private enum ShooterMode {
+        OFF,
+        MANUAL,
+        AUTO
+    }
+
+    private Drivetrain drive;
     private AprilTagCamera camera;
-    private ShooterSistema shooter;
-    private IntakeSistema intake;
+    private Shooter shooter;
+    private Intake intake;
 
     private CalcDistAlvo distanceCalculator;
     private ShooterLista shooterTable;
 
+    private double lastRawCameraDistanceCm = 0.0;
+    private double lastUnfilteredShooterDistanceCm = 0.0;
     private double lastShooterDistanceCm = 0.0;
     private double lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
     private boolean hasCameraShooterSolution = false;
     private long lastCameraSolutionTimeMs = 0;
+    private int lastTargetId = -1;
 
     private boolean shooterSequenceActive = false;
     private long shooterStartTimeMs = 0;
+    private ShooterMode shooterMode = ShooterMode.OFF;
+    private double activeTargetRPM = 0.0;
+    private boolean autoShooterWaitingForCamera = false;
+
     private boolean intakeRunning = false;
+    private boolean intakeReversing = false;
 
     private boolean alignmentRequested = false;
     private boolean alignedWithTag = false;
 
     @Override
     public void init() {
-        drive = new DriveSistema2();
+        drive = new Drivetrain();
         drive.init(hardwareMap);
 
         distanceCalculator = new CalcDistAlvo();
@@ -49,18 +64,20 @@ public class TeleopTest extends OpMode {
         }
 
         if (RConstants.USE_SHOOTER) {
-            shooter = new ShooterSistema();
+            shooter = new Shooter();
             shooter.init(hardwareMap);
         }
 
         if (RConstants.USE_FEEDER) {
-            intake = new IntakeSistema();
+            intake = new Intake();
             intake.init(hardwareMap);
         }
 
         telemetry.addLine("DECODE TeleOp pronto.");
-        telemetry.addLine("gamepad2 RB: intake independente");
-        telemetry.addLine("gamepad2 LB: shooter; intake após 2 segundos");
+        telemetry.addLine("gamepad2 LB: shooter manual");
+        telemetry.addLine("gamepad2 LT: autoshooter pela câmera");
+        telemetry.addLine("gamepad2 RB: intake para frente");
+        telemetry.addLine("gamepad2 RT: intake reverso/destravar");
         telemetry.addLine("gamepad2 X: alinhar a frente com a AprilTag");
         telemetry.addLine("gamepad2 B: parada dos mecanismos");
         telemetry.update();
@@ -89,13 +106,25 @@ public class TeleopTest extends OpMode {
             return;
         }
 
-        lastShooterDistanceCm = distanceCalculator.getShooterDistanceCm(
-                camera.getRangeInches()
-        );
+        int currentTargetId = camera.getTargetId();
+        boolean solutionExpired = !hasFreshCameraShooterSolution();
+        boolean targetChanged = lastTargetId >= 0 && currentTargetId != lastTargetId;
+
+        if (solutionExpired || targetChanged) {
+            distanceCalculator.resetDistanceFilter();
+        }
+
+        double rangeInches = camera.getRangeInches();
+        lastRawCameraDistanceCm = distanceCalculator.getCameraDistanceCm(rangeInches);
+        lastUnfilteredShooterDistanceCm =
+                distanceCalculator.getShooterDistanceCm(rangeInches);
+        lastShooterDistanceCm =
+                distanceCalculator.updateFilteredShooterDistanceCm(rangeInches);
 
         lastTargetRPM = shooterTable.getRPMForDistance(lastShooterDistanceCm);
         hasCameraShooterSolution = true;
         lastCameraSolutionTimeMs = System.currentTimeMillis();
+        lastTargetId = currentTargetId;
     }
 
     private boolean hasFreshCameraShooterSolution() {
@@ -132,8 +161,8 @@ public class TeleopTest extends OpMode {
         }
 
         double speedMultiplier = gamepad1.left_bumper
-                ? RConstants.DRIVE_POWER_NORMAL
-                : RConstants.DRIVE_POWER_TURBO;
+                ? DrivetrainConfig.DRIVE_POWER_NORMAL
+                : DrivetrainConfig.DRIVE_POWER_TURBO;
 
         alignmentRequested = gamepad2.x;
         alignedWithTag = false;
@@ -164,11 +193,18 @@ public class TeleopTest extends OpMode {
 
     private void updateMechanisms() {
         boolean emergencyStop = gamepad2.b;
-        boolean shooterButton = gamepad2.left_bumper;
-        boolean independentIntakeButton = gamepad2.right_bumper;
+        boolean manualShooterRequested = gamepad2.left_bumper;
+        boolean autoShooterRequested = gamepad2.left_trigger
+                > RConstants.GAMEPAD_TRIGGER_THRESHOLD;
+        boolean forwardIntakeRequested = gamepad2.right_bumper;
+        boolean reverseIntakeRequested = gamepad2.right_trigger
+                > RConstants.GAMEPAD_TRIGGER_THRESHOLD;
 
         if (emergencyStop) {
             shooterSequenceActive = false;
+            shooterMode = ShooterMode.OFF;
+            activeTargetRPM = 0.0;
+            autoShooterWaitingForCamera = false;
 
             if (shooter != null) {
                 shooter.stop();
@@ -179,28 +215,24 @@ public class TeleopTest extends OpMode {
             }
 
             intakeRunning = false;
+            intakeReversing = false;
             return;
         }
 
-        if (shooter != null && shooterButton) {
-            if (!shooterSequenceActive) {
-                shooterSequenceActive = true;
-                shooterStartTimeMs = System.currentTimeMillis();
-            }
+        boolean hasAutoSolution = hasFreshCameraShooterSolution();
+        autoShooterWaitingForCamera = autoShooterRequested && !hasAutoSolution;
 
-            // Se a câmera ainda não encontrou a tag, usa o RPM padrão.
-            double requestedRPM = hasFreshCameraShooterSolution()
-                    ? lastTargetRPM
-                    : RConstants.DEFAULT_SHOOTER_RPM;
+        ShooterMode requestedShooterMode = ShooterMode.OFF;
 
-            shooter.setRPM(requestedRPM);
-        } else {
-            shooterSequenceActive = false;
-
-            if (shooter != null) {
-                shooter.stop();
-            }
+        // O autoshooter tem prioridade quando LT e LB forem pressionados juntos.
+        // Se LT estiver sem alvo, LB ainda pode assumir o modo manual.
+        if (autoShooterRequested && hasAutoSolution) {
+            requestedShooterMode = ShooterMode.AUTO;
+        } else if (manualShooterRequested) {
+            requestedShooterMode = ShooterMode.MANUAL;
         }
+
+        updateShooter(requestedShooterMode);
 
         long shooterElapsedMs = shooterSequenceActive
                 ? System.currentTimeMillis() - shooterStartTimeMs
@@ -209,14 +241,18 @@ public class TeleopTest extends OpMode {
         boolean delayedIntakeFromShooter = shooterSequenceActive
                 && shooterElapsedMs >= RConstants.SHOOTER_SPINUP_DELAY_MS;
 
-        // RB controla apenas o intake. LB controla o shooter e, após o atraso,
-        // também libera o intake. Nenhum comando de RB liga o shooter.
-        intakeRunning = independentIntakeButton || delayedIntakeFromShooter;
+        // RT tem prioridade para permitir destravar o intake imediatamente.
+        intakeReversing = reverseIntakeRequested;
+        intakeRunning = reverseIntakeRequested
+                || forwardIntakeRequested
+                || delayedIntakeFromShooter;
 
         if (intake != null) {
             intake.update();
 
-            if (intakeRunning) {
+            if (intakeReversing) {
+                intake.startReverseContinuous();
+            } else if (intakeRunning) {
                 intake.startContinuous();
             } else if (intake.isContinuous() || intake.isBusy()) {
                 intake.stopContinuous();
@@ -224,10 +260,44 @@ public class TeleopTest extends OpMode {
         }
     }
 
+    private void updateShooter(ShooterMode requestedMode) {
+        if (shooter == null) {
+            shooterMode = ShooterMode.OFF;
+            shooterSequenceActive = false;
+            activeTargetRPM = 0.0;
+            return;
+        }
+
+        // Reinicia os 2 segundos quando liga ou troca entre manual e automático.
+        if (requestedMode != shooterMode) {
+            shooterMode = requestedMode;
+
+            if (shooterMode == ShooterMode.OFF) {
+                shooterSequenceActive = false;
+            } else {
+                shooterSequenceActive = true;
+                shooterStartTimeMs = System.currentTimeMillis();
+            }
+        }
+
+        if (shooterMode == ShooterMode.MANUAL) {
+            activeTargetRPM = RConstants.MANUAL_SHOOTER_RPM;
+            shooter.setRPM(activeTargetRPM);
+        } else if (shooterMode == ShooterMode.AUTO) {
+            activeTargetRPM = lastTargetRPM;
+            shooter.setRPM(activeTargetRPM);
+        } else {
+            activeTargetRPM = 0.0;
+            shooter.stop();
+        }
+    }
+
     private void sendTelemetry() {
         telemetry.addLine("----- CONTROLES -----");
-        telemetry.addData("RB intake", gamepad2.right_bumper);
-        telemetry.addData("LB shooter", gamepad2.left_bumper);
+        telemetry.addData("LB shooter manual", gamepad2.left_bumper);
+        telemetry.addData("LT autoshooter", gamepad2.left_trigger);
+        telemetry.addData("RB intake frente", gamepad2.right_bumper);
+        telemetry.addData("RT intake reverso", gamepad2.right_trigger);
         telemetry.addData("X alinhamento", alignmentRequested);
 
         telemetry.addLine("----- MIRA -----");
@@ -239,12 +309,29 @@ public class TeleopTest extends OpMode {
             telemetry.addData("Tag ID", camera.getTargetId());
             telemetry.addData("Bearing", camera.getBearingDegrees());
             telemetry.addData("Range (in)", camera.getRangeInches());
+            telemetry.addData("Range cru (cm)", camera.getRangeInches() * 2.54);
+
+            telemetry.addData("Y frontal (cm)", camera.getForwardInches() * 2.54);
+            telemetry.addData("X lateral (cm)", camera.getSideInches() * 2.54);
         }
 
         telemetry.addLine("----- SHOOTER -----");
+        telemetry.addData("Modo", shooterMode);
         telemetry.addData("Solução atual da câmera", hasFreshCameraShooterSolution());
-        telemetry.addData("Distância ao gol (cm)", lastShooterDistanceCm);
-        telemetry.addData("RPM alvo", lastTargetRPM);
+        telemetry.addData("Auto aguardando câmera", autoShooterWaitingForCamera);
+        telemetry.addData("Distância câmera crua (cm)", lastRawCameraDistanceCm);
+        telemetry.addData("Distância corrigida sem filtro (cm)",
+                lastUnfilteredShooterDistanceCm);
+        telemetry.addData("Distância usada pelo auto (cm)", lastShooterDistanceCm);
+        telemetry.addData("Distância dentro da tabela",
+                shooterTable.isDistanceInsideTable(lastShooterDistanceCm));
+        telemetry.addData("RPM calculado pela câmera", lastTargetRPM);
+        telemetry.addData("RPM aplicado", activeTargetRPM);
+
+        if (hasFreshCameraShooterSolution()
+                && !shooterTable.isDistanceInsideTable(lastShooterDistanceCm)) {
+            telemetry.addLine("ATENÇÃO: distância fora da tabela; usando o limite mais próximo.");
+        }
 
         if (shooter != null) {
             long elapsedMs = shooterSequenceActive
@@ -257,6 +344,7 @@ public class TeleopTest extends OpMode {
         }
 
         telemetry.addData("Intake ligado", intakeRunning);
+        telemetry.addData("Intake reverso", intakeReversing);
         telemetry.update();
     }
 

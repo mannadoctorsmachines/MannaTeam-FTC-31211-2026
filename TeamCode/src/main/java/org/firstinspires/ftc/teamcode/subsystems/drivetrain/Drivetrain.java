@@ -1,5 +1,6 @@
-package org.firstinspires.ftc.teamcode.drive;
+package org.firstinspires.ftc.teamcode.subsystems.drivetrain;
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -8,12 +9,13 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.core.RConstants;
+import org.firstinspires.ftc.teamcode.robot.RConstants;
 import org.firstinspires.ftc.teamcode.util.MathU;
-import org.firstinspires.ftc.teamcode.util.PIDController;
+import org.firstinspires.ftc.teamcode.control.PIDController;
 
-public class DriveSistema2 {
+public class Drivetrain {
 
+    GoBildaPinpointDriver odo;
     private DcMotorEx leftFrontMotor;
     private DcMotorEx rightFrontMotor;
     private DcMotorEx leftBackMotor;
@@ -23,10 +25,12 @@ public class DriveSistema2 {
     private PIDController turnPID;
 
     public void init(HardwareMap hardwareMap) {
-        leftFrontMotor = hardwareMap.get(DcMotorEx.class, RConstants.LEFT_DRIVE);
-        rightFrontMotor = hardwareMap.get(DcMotorEx.class, RConstants.RIGHT_DRIVE);
-        leftBackMotor = hardwareMap.get(DcMotorEx.class, RConstants.LEFTB_DRIVE);
-        rightBackMotor = hardwareMap.get(DcMotorEx.class, RConstants.RIGHTB_DRIVE);
+        odo = hardwareMap.get(GoBildaPinpointDriver.class, "odmetry");
+
+        leftFrontMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.LEFT_DRIVE);
+        rightFrontMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.RIGHT_DRIVE);
+        leftBackMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.LEFTB_DRIVE);
+        rightBackMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.RIGHTB_DRIVE);
 
         configureMotors();
         configureImu(hardwareMap);
@@ -38,12 +42,12 @@ public class DriveSistema2 {
         );
     }
 
-    private void configureMotors() {
-        leftFrontMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        leftBackMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        rightFrontMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightBackMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+    private void configureMotors() {
+        leftFrontMotor.setDirection(DcMotorSimple.Direction.FORWARD); // 0
+        leftBackMotor.setDirection(DcMotorSimple.Direction.FORWARD); // 2
+        rightFrontMotor.setDirection(DcMotorSimple.Direction.REVERSE); // 1
+        rightBackMotor.setDirection(DcMotorSimple.Direction.REVERSE); // 3
 
         setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -54,8 +58,8 @@ public class DriveSistema2 {
 
         IMU.Parameters parameters = new IMU.Parameters(
                 new RevHubOrientationOnRobot(
-                        RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                        RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+                        RevHubOrientationOnRobot.LogoFacingDirection.LEFT,
+                        RevHubOrientationOnRobot.UsbFacingDirection.UP
                 )
         );
 
@@ -169,7 +173,7 @@ public class DriveSistema2 {
     }
 
     public void encoderDriveCm(double cm, double power) {
-        int ticks = (int) Math.round(cm * RConstants.TICKS_PER_CM);
+        int ticks = (int) Math.round(cm * DrivetrainConfig.TICKS_PER_CM);
 
         resetEncoders();
 
@@ -180,14 +184,14 @@ public class DriveSistema2 {
 
         setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        power = Math.abs(MathU.clamp(power, 0.0, 1.0));
+        power = Math.abs(MathU.clamp(power, -1.0, 1.0));
 
         setMecanumPowers(power, power, power, power);
     }
 
     public void encoderTurnCm(double leftCm, double rightCm, double power) {
-        int leftTicks = (int) Math.round(leftCm * RConstants.TICKS_PER_CM);
-        int rightTicks = (int) Math.round(rightCm * RConstants.TICKS_PER_CM);
+        int leftTicks = (int) Math.round(leftCm * DrivetrainConfig.TICKS_PER_CM);
+        int rightTicks = (int) Math.round(rightCm * DrivetrainConfig.TICKS_PER_CM);
 
         resetEncoders();
 
@@ -199,7 +203,7 @@ public class DriveSistema2 {
 
         setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        power = Math.abs(MathU.clamp(power, 0.0, 1.0));
+        power = Math.abs(MathU.clamp(power, -1.0, 1.0));
 
         setMecanumPowers(power, power, power, power);
     }
@@ -209,7 +213,7 @@ public class DriveSistema2 {
      * Valor positivo desloca para a direita; negativo, para a esquerda.
      */
     public void encoderStrafeCm(double cm, double power) {
-        int ticks = (int) Math.round(cm * RConstants.STRAFE_TICKS_PER_CM);
+        int ticks = (int) Math.round(cm * DrivetrainConfig.STRAFE_TICKS_PER_CM);
 
         resetEncoders();
 
@@ -220,7 +224,7 @@ public class DriveSistema2 {
 
         setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        power = Math.abs(MathU.clamp(power, 0.0, 1.0));
+        power = Math.abs(MathU.clamp(power, -1.0, 1.0));
         setMecanumPowers(power, power, power, power);
     }
 
@@ -243,7 +247,7 @@ public class DriveSistema2 {
                         + rightBackMotor.getCurrentPosition()
         ) / 4.0;
 
-        return averageTicks / RConstants.TICKS_PER_CM;
+        return averageTicks / DrivetrainConfig.TICKS_PER_CM;
     }
 
     public double getAverageStrafeDistanceCm() {
@@ -254,7 +258,7 @@ public class DriveSistema2 {
                         + rightBackMotor.getCurrentPosition()
         ) / 4.0;
 
-        return averageStrafeTicks / RConstants.STRAFE_TICKS_PER_CM;
+        return averageStrafeTicks / DrivetrainConfig.STRAFE_TICKS_PER_CM;
     }
 
     public void setRunMode(DcMotor.RunMode mode) {

@@ -21,8 +21,9 @@ public class AutoAzulParede extends AutoBaseSimples {
         }
 
         // ROTA AZUL. Altere estes números diretamente após medir na arena.
+        andarCm(30.0, 0.45);
         virarGraus(45.0);
-        atirar(335.0, 3);
+        atirar(100.0, 3);
 
         pararTudo();
     }

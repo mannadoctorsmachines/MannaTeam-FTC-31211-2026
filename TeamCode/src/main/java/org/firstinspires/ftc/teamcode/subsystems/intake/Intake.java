@@ -1,17 +1,18 @@
-package org.firstinspires.ftc.teamcode.mechanisms;
+package org.firstinspires.ftc.teamcode.subsystems.intake;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.core.RConstants;
+import org.firstinspires.ftc.teamcode.robot.RConstants;
 
-public class IntakeSistema {
+public class Intake {
 
     private DcMotorEx feederMotor;
 
     private boolean pushing = false;
     private boolean continuous = false;
+    private boolean reversing = false;
     private long pushStartTime = 0;
 
     public void init(HardwareMap hardwareMap) {
@@ -43,14 +44,16 @@ public class IntakeSistema {
     /**
      * Alimentação temporizada: empurra apenas uma bola.
      */
-    public void pushOne() {
+    public boolean pushOne() {
         if (pushing || continuous) {
-            return;
+            return false;
         }
 
+        reversing = false;
         feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
         pushStartTime = System.currentTimeMillis();
         pushing = true;
+        return true;
     }
 
     /**
@@ -59,8 +62,20 @@ public class IntakeSistema {
     public void startContinuous() {
         continuous = true;
         pushing = true;
+        reversing = false;
 
         feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
+    }
+
+    /**
+     * Mantém o intake girando ao contrário para soltar uma bola presa.
+     */
+    public void startReverseContinuous() {
+        continuous = true;
+        pushing = true;
+        reversing = true;
+
+        feederMotor.setPower(RConstants.INTAKE_REVERSE_POWER);
     }
 
     /**
@@ -73,6 +88,7 @@ public class IntakeSistema {
 
     public void rest() {
         pushing = false;
+        reversing = false;
         feederMotor.setPower(RConstants.INTAKE_REST_POWER);
     }
 
@@ -87,5 +103,9 @@ public class IntakeSistema {
 
     public boolean isContinuous() {
         return continuous;
+    }
+
+    public boolean isReversing() {
+        return reversing;
     }
 }

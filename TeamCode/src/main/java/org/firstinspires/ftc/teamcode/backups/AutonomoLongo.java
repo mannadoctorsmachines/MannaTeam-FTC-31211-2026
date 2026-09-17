@@ -1,13 +1,13 @@
-package org.firstinspires.ftc.teamcode.opmodes;
+package org.firstinspires.ftc.teamcode.backups;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-import org.firstinspires.ftc.teamcode.core.RConstants;
-import org.firstinspires.ftc.teamcode.drive.DriveSistema2;
-import org.firstinspires.ftc.teamcode.mechanisms.IntakeSistema;
-import org.firstinspires.ftc.teamcode.mechanisms.ShooterSistema;
+import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
+import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
@@ -28,11 +28,11 @@ import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
 @Autonomous(name = "DECODE Auto Completo", group = "Competition")
 public class AutonomoLongo extends LinearOpMode {
 
-    private DriveSistema2 drive;
+    private Drivetrain drive;
 
     private AprilTagCamera camera;
-    private ShooterSistema shooter;
-    private IntakeSistema feeder;
+    private Shooter shooter;
+    private Intake feeder;
 
     private CalcDistAlvo distanceCalculator;
     private ShooterLista shooterTable;
@@ -112,7 +112,7 @@ public class AutonomoLongo extends LinearOpMode {
     }
 
     private void initSystems() {
-        drive = new DriveSistema2();
+        drive = new Drivetrain();
         drive.init(hardwareMap);
 
         distanceCalculator = new CalcDistAlvo();
@@ -124,12 +124,12 @@ public class AutonomoLongo extends LinearOpMode {
         }
 
         if (RConstants.USE_SHOOTER) {
-            shooter = new ShooterSistema();
+            shooter = new Shooter();
             shooter.init(hardwareMap);
         }
 
         if (RConstants.USE_FEEDER) {
-            feeder = new IntakeSistema();
+            feeder = new Intake();
             feeder.init(hardwareMap);
         }
     }

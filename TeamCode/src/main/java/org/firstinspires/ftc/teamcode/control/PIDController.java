@@ -1,4 +1,6 @@
-package org.firstinspires.ftc.teamcode.util;
+package org.firstinspires.ftc.teamcode.control;
+
+import org.firstinspires.ftc.teamcode.util.MathU;
 
 public class PIDController {
 

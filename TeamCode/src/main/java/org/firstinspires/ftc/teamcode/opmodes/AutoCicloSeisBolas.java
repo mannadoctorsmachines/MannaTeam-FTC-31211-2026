@@ -3,22 +3,20 @@ package org.firstinspires.ftc.teamcode.opmodes;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
 /**
- * Uma única rota para azul ou vermelho.
- *
- * Em cada aliança, o robô deve ser colocado na posição equivalente espelhada:
- * shooter voltado para o próprio gol e alinhado de frente/ré com a fileira de
- * três bolas. Não existe seleção por gamepad.
+ * Rota convertida do arquivo path_robot.pp para movimentos simples por
+ * encoder e headings absolutos da IMU. Não depende de Pedro Pathing e não lê
+ * nenhum gamepad.
  */
-@Autonomous(name = "DECODE 3 - Ciclo 6 Bolas", group = "Competition")
+@Autonomous(name = "DECODE 3 - Ciclo 6 Bolas- Vermelho", group = "Competition")
 public class AutoCicloSeisBolas extends AutoBaseSimples {
 
     @Override
     public void runOpMode() {
         iniciarSistemas();
 
-        telemetry.addLine("CICLO 6 BOLAS - serve para azul ou vermelho.");
-        telemetry.addLine("Use a posição espelhada do seu lado da arena.");
-        telemetry.addLine("Shooter para o gol e robô alinhado com as 3 bolas.");
+        telemetry.addLine("CICLO 6 BOLAS.");
+        telemetry.addLine("Coloque o robô na posição inicial desenhada.");
+        telemetry.addLine("No INIT, a IMU considera essa direção como 0 grau.");
         telemetry.update();
 
         waitForStart();
@@ -28,23 +26,38 @@ public class AutoCicloSeisBolas extends AutoBaseSimples {
             return;
         }
 
-        // ROTA: cada linha é uma ação e pode ser alterada separadamente.
+        // ROTA CONVERTIDA: todas as distâncias estão em centímetros.
+        // virarParaGraus() usa a direção inicial do robô como heading 0.
 
-        // 1) Sai de ré do gol e lança as 3 bolas que já estão no robô.
-        andarCm(-60.0, 0.45);
+        // 1) Ponto inicial -> posição de tiro.
+        // O robô vira aproximadamente 45 graus e percorre o trecho de ré,
+        // mantendo o shooter apontado para o gol.
+        andarCm(-100.0, 0.45);
+        esperar(500);
+
+        // A posição final deste trecho também será usada no segundo disparo.
+        // Ajuste 100 cm para a distância real medida entre o shooter e o gol.
         atirar(100.0, 3);
 
-        // 2) Vira o intake frontal para as bolas e tenta coletar mais 3.
-        virarGraus(180.0);
+        // 2) Recua da posição de tiro e começa a busca das bolas próximas.
+
+        // andarCm(-25.0, 0.40);
+        virarGraus(45.0);
+
+        esperar(200);
+
         ligarIntake();
-        andarCm(85.0, 0.35);
-        esperar(700);
+        andarCm(50, 0.45);
+        esperar(800);
+
+        andarCm(-50, 0.45);
+        virarGraus(-45.9);
+
+        //-25.7, 0.45);;
+
+        atirar(100.0, 3);
         desligarIntake();
 
-        // 3) Volta à posição de tiro, aponta para o gol e lança novamente.
-        andarCm(-85.0, 0.45);
-        virarGraus(180.0);
-        atirar(100.0, 3);
 
         pararTudo();
     }
