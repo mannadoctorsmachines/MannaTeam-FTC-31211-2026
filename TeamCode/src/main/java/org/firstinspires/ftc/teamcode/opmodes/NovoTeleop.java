@@ -14,7 +14,7 @@ import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.apriltag.AprilTagCamera;
 
 @TeleOp(name = "DECODE TeleOp Completo", group = "Competition")
 public class NovoTeleop extends OpMode {

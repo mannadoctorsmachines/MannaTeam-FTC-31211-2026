@@ -10,7 +10,7 @@ import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.apriltag.AprilTagCamera;
 
 @TeleOp(name = "TeleopTeste", group = "Competition unofficial")
 public class TeleopTest extends OpMode {
