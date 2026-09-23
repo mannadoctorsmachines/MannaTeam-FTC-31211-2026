@@ -3,10 +3,11 @@ package org.firstinspires.ftc.teamcode.vision;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.teamcode.core.RConstants;
+import org.firstinspires.ftc.teamcode.robot.RConstants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import android.util.Size;
 
 import java.util.List;
 
@@ -27,12 +28,17 @@ public class AprilTagCamera {
 
         visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, RConstants.WEBCAM))
+                .setCameraResolution(new Size(640, 480))
                 .addProcessor(aprilTagProcessor)
                 .build();
     }
 
     public void update() {
         atualDetection = null;
+
+        if (aprilTagProcessor == null) {
+            return;
+        }
 
         List<AprilTagDetection> detections = aprilTagProcessor.getDetections();
 
@@ -45,6 +51,11 @@ public class AprilTagCamera {
 
         for (AprilTagDetection detection : detections) {
             if (detection.metadata == null || detection.ftcPose == null) {
+                continue;
+            }
+
+            if (RConstants.TARGET_APRIL_TAG_ID >= 0
+                    && detection.id != RConstants.TARGET_APRIL_TAG_ID) {
                 continue;
             }
 
@@ -93,9 +104,29 @@ public class AprilTagCamera {
         return atualDetection.ftcPose.yaw;
     }
 
+    public double getForwardInches() {
+        if (!hasTarget()) {
+            return 0.0;
+        }
+
+        return atualDetection.ftcPose.y;
+    }
+
+    public double getSideInches() {
+        if (!hasTarget()) {
+            return 0.0;
+        }
+
+        return atualDetection.ftcPose.x;
+    }
+
     public void close() {
         if (visionPortal != null) {
             visionPortal.close();
+            visionPortal = null;
         }
+
+        aprilTagProcessor = null;
+        atualDetection = null;
     }
 }
