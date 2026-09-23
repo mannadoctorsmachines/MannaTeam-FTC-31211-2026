@@ -1,0 +1,832 @@
+package org.firstinspires.ftc.teamcode.robot;
+
+public class RConstants {
+
+    // Hardware Map - Sensores
+    public static final String IMU = "imu";
+    public static final String WEBCAM = "Webcam 1";
+
+    // Hardware Map - Mecanismos
+    public static final String SHOOTER_LEFT = "shooterMotor1";
+    public static final String SHOOTER_RIGHT = "shooterMotor2";
+    public static final String FEEDER = "intakeMotor";
+
+    // Sistemas presentes na versão completa do robô.
+    // Para testes sem algum mecanismo, desative apenas temporariamente.
+    public static final boolean USE_CAMERA = true;
+    public static final boolean USE_SHOOTER = true;
+    public static final boolean USE_FEEDER = true;
+
+    // Observação: a torreta (CameraTurret) foi removida do robô.
+    // O shooter agora é fixo. No TeleOp, a câmera fornece bearing e distância.
+    // Nos autônomos, o chassi gira pela IMU e se posiciona pelos encoders;
+    // a distância de cada posição de tiro é escrita diretamente na rota.
+    // A versão antiga com torreta continua arquivada em backups/CameraTurret.java
+    // e também deve ser mantida numa branch/tag separada no GitHub.
+
+    // Limites gerais
+    public static final double MIN_MOTOR_POWER = -1.0;
+    public static final double MAX_MOTOR_POWER = 1.0;
+
+    // Mecanum normalmente escorrega mais de lado. Comece com este fator e
+    // calibre separadamente comandando um strafe de 100 cm.
+    public static final double STRAFE_CORRECTION = 1.15;
+
+    // PID de giro do robô
+    public static final double TURN_KP = 0.018;
+    public static final double TURN_KI = 0.0;
+    public static final double TURN_KD = 0.0015;
+    public static final double TURN_MIN_POWER = 0.12;
+    public static final double TURN_MAX_POWER = 0.45;
+
+    // ---------------------------------------------------------------------
+    // SHOOTER - todos os RPMs pedidos pelo código são RPM DO ROLO
+    // ---------------------------------------------------------------------
+    // Estes três valores precisam ser confirmados antes da calibração final.
+    //
+    // 1) Ticks registrados pelo encoder em uma volta do eixo de saída do motor.
+    //    Obtenha no datasheet do modelo exato do motor.
+    public static final double SHOOTER_MOTOR_TICKS_PER_REV = 537.7;
+
+    // 2) RPM nominal do eixo de saída do motor, informado pelo fabricante.
+    //    Zero significa "ainda não informado" e gera aviso na telemetria.
+    public static final double SHOOTER_MOTOR_NOMINAL_RPM = 6000.0;
+
+    // 3) Quantas voltas o motor dá para o rolo completar uma volta.
+    //    Com correia dentada:
+    //    dentes da polia do rolo / dentes da polia do motor.
+    //    Direto no mesmo eixo = 1.0.
+    public static final double SHOOTER_MOTOR_REVS_PER_ROLLER_REV = 1.0;
+
+    // Valor efetivamente usado na conversão entre ticks/s e RPM do rolo.
+    public static final double SHOOTER_TICKS_PER_ROLLER_REV =
+            SHOOTER_MOTOR_TICKS_PER_REV
+                    * SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+
+    // Também são RPM do rolo. MAX_SHOOTER_RPM nunca deve ser maior que
+    // SHOOTER_MOTOR_NOMINAL_RPM / SHOOTER_MOTOR_REVS_PER_ROLLER_REV.
+    public static final double MIN_SHOOTER_RPM = 300.0;
+    public static final double MAX_SHOOTER_RPM = 3000.0;
+
+    // =====================================================================
+    // >>> AJUSTE AQUI O RPM DO SHOOTER NORMAL / MANUAL (gamepad2 LB) <<<
+    // =====================================================================
+    // RPM DO ROLO usado pelo shooter manual (gamepad2 LB).
+    public static final double MANUAL_SHOOTER_RPM = 20.0;
+
+    // Fallback usado apenas se a tabela de distância estiver inválida.
+    // Mantê-lo ligado ao RPM manual evita dois valores padrão diferentes.
+    public static final double DEFAULT_SHOOTER_RPM = MANUAL_SHOOTER_RPM;
+
+    // Passos usados no OpMode "DECODE Calibrar Distancia e RPM".
+    public static final double SHOOTER_CALIBRATION_COARSE_STEP_RPM = 100.0;
+    public static final double SHOOTER_CALIBRATION_FINE_STEP_RPM = 25.0;
+
+    public static final double SHOOTER_READY_TOLERANCE_RPM = 85.0;
+
+    // Ao ligar o shooter manual ou automático, o intake só é liberado
+    // depois deste tempo mínimo de aceleração.
+    public static final long SHOOTER_SPINUP_DELAY_MS = 2000;
+
+    // Intake / Feeder
+    public static final double INTAKE_REST_POWER = 0.0;
+    public static final double INTAKE_PUSH_POWER = 0.75;
+    public static final double INTAKE_REVERSE_POWER = -0.75;
+    public static final long INTAKE_PUSH_TIME_MS = 260;
+
+    // Evita que um pequeno ruído analógico dos gatilhos acione mecanismos.
+    public static final double GAMEPAD_TRIGGER_THRESHOLD = 0.20;
+
+    // Conversões
+    public static final double INCH_TO_CM = 2.54;
+
+    // Cálculo de distância do shooter (range da AprilTag medido pela câmera).
+    // CAMERA_TO_SHOOTER_OFFSET_CM corrige a diferença entre a câmera e o ponto
+    // de saída da bolinha. Use positivo se o shooter estiver mais longe do alvo
+    // que a câmera e negativo se estiver mais perto.
+    public static final double CAMERA_TO_SHOOTER_OFFSET_CM = -26.5; // 12.0 valor antigo
+    public static final double TAG_TO_TARGET_OFFSET_CM = 0.0;
+
+    // Suaviza pequenas oscilações da câmera. 1.0 = sem filtro; valores menores
+    // deixam a leitura mais estável, porém um pouco mais lenta para responder.
+    public static final double CAMERA_DISTANCE_FILTER_ALPHA = 0.5; //0.25 valor antigo
+
+    public static final double TURN_TOLERANCE_DEGREES = 2.0;
+
+    // ID da AprilTag colocada no gol. Use -1 para aceitar qualquer tag visível.
+    public static final int TARGET_APRIL_TAG_ID = -1;
+    public static final long CAMERA_SOLUTION_MAX_AGE_MS = 500;
+
+    // ---------------------------------------------------------------------
+    // AUTÔNOMOS - limites gerais e tempos de segurança
+    // ---------------------------------------------------------------------
+    public static final long AUTO_DRIVE_TIMEOUT_MS = 4000;
+    public static final long AUTO_TURN_TIMEOUT_MS = 3000;
+    public static final long AUTO_SHOOTER_READY_TIMEOUT_MS = 4000;
+    public static final long AUTO_DELAY_BETWEEN_SHOTS_MS = 500;
+
+    // Tempo máximo para uma alimentação individual e para o shooter recuperar
+    // a velocidade depois que uma bolinha encosta nos rolos.
+    public static final long AUTO_FEED_TIMEOUT_MS = 1500;
+    public static final long AUTO_SHOOTER_RECOVERY_TIMEOUT_MS = 2500;
+
+    // false evita lançar quando os motores não atingiram o RPM calibrado.
+    public static final boolean AUTO_SHOOT_AFTER_RPM_TIMEOUT = false;
+
+    // false evita usar automaticamente o último RPM da tabela quando a posição
+    // de tiro ainda não foi calibrada.
+    public static final boolean AUTO_ALLOW_DISTANCE_OUTSIDE_RPM_TABLE = false;
+
+    // Mira
+    public static final double AIM_TOLERANCE_DEGREES = 2.0;
+
+    // Tempo máximo (ms) que o autônomo espera o robô girar em direção ao alvo
+    public static final long AIM_TURN_TIMEOUT_MS = 1500;
+
+    // Correção encontrada nos testes físicos da webcam.
+    public static final double CAMERA_DISTANCE_SCALE = 0.78125;
+    public static final double CAMERA_DISTANCE_BIAS_CM = 0.0;
+
+
+}
+package org.firstinspires.ftc.teamcode.robot;
+
+public class Robot {
+}
+package org.firstinspires.ftc.teamcode.config;
+
+public class HardwareConfig {
+}
+package org.firstinspires.ftc.teamcode.config;
+
+public class RobotConfig {
+}
+package org.firstinspires.ftc.teamcode.subsystems.drivetrain;
+
+public class DrivetrainConfig {
+
+    // Hardware Map - Drive
+    public static final String LEFT_DRIVE = "rodaEsquerda";
+    public static final String LEFTB_DRIVE = "trasEsquerda";
+    public static final String RIGHT_DRIVE = "rodaDireita";
+    public static final String RIGHTB_DRIVE = "trasDireita";
+
+    // Drive
+    public static final double DRIVE_POWER_SLOW = 0.45;
+    public static final double DRIVE_POWER_NORMAL = 0.75;
+    public static final double DRIVE_POWER_TURBO = 1.0;
+
+    // Revolução
+
+    public static final double TICKS_PER_MOTOR_REV = 28;
+    public static final double WHEEL_DIAMETER_CM = 7.6;
+    public static final double DRIVE_GEAR_RATIO = 5.0;
+    public static final double TICKS_PER_CM =
+            (TICKS_PER_MOTOR_REV * DRIVE_GEAR_RATIO) / (Math.PI * WHEEL_DIAMETER_CM);
+
+    // Mecanum normalmente escorrega mais de lado. Comece com este fator e
+    // calibre separadamente comandando um strafe de 100 cm.
+    public static final double STRAFE_CORRECTION = 1.15;
+    public static final double STRAFE_TICKS_PER_CM = TICKS_PER_CM * STRAFE_CORRECTION;
+}
+package org.firstinspires.ftc.teamcode.subsystems.drivetrain;
+
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.IMU;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.util.MathU;
+import org.firstinspires.ftc.teamcode.control.PIDController;
+
+public class Drivetrain {
+
+    GoBildaPinpointDriver odo;
+    private DcMotorEx leftFrontMotor;
+    private DcMotorEx rightFrontMotor;
+    private DcMotorEx leftBackMotor;
+    private DcMotorEx rightBackMotor;
+
+    private IMU imu;
+    private PIDController turnPID;
+
+    public void init(HardwareMap hardwareMap) {
+        odo = hardwareMap.get(GoBildaPinpointDriver.class, "odmetry");
+
+        leftFrontMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.LEFT_DRIVE);
+        rightFrontMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.RIGHT_DRIVE);
+        leftBackMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.LEFTB_DRIVE);
+        rightBackMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.RIGHTB_DRIVE);
+
+        configureMotors();
+        configureImu(hardwareMap);
+
+        turnPID = new PIDController(
+                RConstants.TURN_KP,
+                RConstants.TURN_KI,
+                RConstants.TURN_KD
+        );
+    }
+
+
+    private void configureMotors() {
+        leftFrontMotor.setDirection(DcMotorSimple.Direction.FORWARD); // 0
+        leftBackMotor.setDirection(DcMotorSimple.Direction.FORWARD); // 2
+        rightFrontMotor.setDirection(DcMotorSimple.Direction.REVERSE); // 1
+        rightBackMotor.setDirection(DcMotorSimple.Direction.REVERSE); // 3
+
+        setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+    }
+
+    private void configureImu(HardwareMap hardwareMap) {
+        imu = hardwareMap.get(IMU.class, RConstants.IMU);
+
+        IMU.Parameters parameters = new IMU.Parameters(
+                new RevHubOrientationOnRobot(
+                        RevHubOrientationOnRobot.LogoFacingDirection.LEFT,
+                        RevHubOrientationOnRobot.UsbFacingDirection.UP
+                )
+        );
+
+        imu.initialize(parameters);
+        resetHeading();
+    }
+
+    public void driveMecanum(double axial, double lateral, double yaw, double speedMultiplier) {
+        axial = MathU.clamp(axial, -1.0, 1.0);
+        lateral = MathU.clamp(lateral, -1.0, 1.0);
+        yaw = MathU.clamp(yaw, -1.0, 1.0);
+        speedMultiplier = MathU.clamp(speedMultiplier, 0.0, 1.0);
+
+        double leftFrontPower = axial + lateral + yaw;
+        double rightFrontPower = axial - lateral - yaw;
+        double leftBackPower = axial - lateral + yaw;
+        double rightBackPower = axial + lateral - yaw;
+
+        double max = Math.max(
+                Math.max(Math.abs(leftFrontPower), Math.abs(rightFrontPower)),
+                Math.max(Math.abs(leftBackPower), Math.abs(rightBackPower))
+        );
+
+        if (max < 1.0) {
+            max = 1.0;
+        }
+
+        leftFrontPower = leftFrontPower / max * speedMultiplier;
+        rightFrontPower = rightFrontPower / max * speedMultiplier;
+        leftBackPower = leftBackPower / max * speedMultiplier;
+        rightBackPower = rightBackPower / max * speedMultiplier;
+
+        setMecanumPowers(
+                leftFrontPower,
+                rightFrontPower,
+                leftBackPower,
+                rightBackPower
+        );
+    }
+
+    public void setMecanumPowers(
+            double leftFrontPower,
+            double rightFrontPower,
+            double leftBackPower,
+            double rightBackPower
+    ) {
+        leftFrontPower = MathU.clamp(leftFrontPower, -1.0, 1.0);
+        rightFrontPower = MathU.clamp(rightFrontPower, -1.0, 1.0);
+        leftBackPower = MathU.clamp(leftBackPower, -1.0, 1.0);
+        rightBackPower = MathU.clamp(rightBackPower, -1.0, 1.0);
+
+        leftFrontMotor.setPower(leftFrontPower);
+        rightFrontMotor.setPower(rightFrontPower);
+        leftBackMotor.setPower(leftBackPower);
+        rightBackMotor.setPower(rightBackPower);
+    }
+
+    public void stop() {
+        setMecanumPowers(0, 0, 0, 0);
+    }
+
+    public void resetHeading() {
+        imu.resetYaw();
+    }
+
+    public double getHeadingDegrees() {
+        return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+    }
+
+    public double getTurnPowerToHeading(double targetHeadingDegrees) {
+        double currentHeading = getHeadingDegrees();
+        double error = MathU.normalizarAngulo(targetHeadingDegrees - currentHeading);
+
+        if (Math.abs(error) <= RConstants.TURN_TOLERANCE_DEGREES) {
+            return 0.0;
+        }
+
+        double output = turnPID.calculate(0.0, -error);
+
+        output = MathU.clamp(
+                output,
+                -RConstants.TURN_MAX_POWER,
+                RConstants.TURN_MAX_POWER
+        );
+
+        if (Math.abs(output) < RConstants.TURN_MIN_POWER) {
+            output = Math.copySign(RConstants.TURN_MIN_POWER, output);
+        }
+
+        return output;
+    }
+
+    public void resetTurnController() {
+        turnPID.reset();
+    }
+
+    public void turnToHeading(double targetHeadingDegrees) {
+        double turnPower = getTurnPowerToHeading(targetHeadingDegrees);
+
+        setMecanumPowers(
+                turnPower,
+                -turnPower,
+                turnPower,
+                -turnPower
+        );
+    }
+
+    public void resetEncoders() {
+        setRunMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        setRunMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+    public void encoderDriveCm(double cm, double power) {
+        int ticks = (int) Math.round(cm * DrivetrainConfig.TICKS_PER_CM);
+
+        resetEncoders();
+
+        leftFrontMotor.setTargetPosition(ticks);
+        rightFrontMotor.setTargetPosition(ticks);
+        leftBackMotor.setTargetPosition(ticks);
+        rightBackMotor.setTargetPosition(ticks);
+
+        setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        power = Math.abs(MathU.clamp(power, -1.0, 1.0));
+
+        setMecanumPowers(power, power, power, power);
+    }
+
+    public void encoderTurnCm(double leftCm, double rightCm, double power) {
+        int leftTicks = (int) Math.round(leftCm * DrivetrainConfig.TICKS_PER_CM);
+        int rightTicks = (int) Math.round(rightCm * DrivetrainConfig.TICKS_PER_CM);
+
+        resetEncoders();
+
+        leftFrontMotor.setTargetPosition(leftTicks);
+        leftBackMotor.setTargetPosition(leftTicks);
+
+        rightFrontMotor.setTargetPosition(rightTicks);
+        rightBackMotor.setTargetPosition(rightTicks);
+
+        setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        power = Math.abs(MathU.clamp(power, -1.0, 1.0));
+
+        setMecanumPowers(power, power, power, power);
+    }
+
+    /**
+     * Deslocamento lateral por encoder para rodas mecanum.
+     * Valor positivo desloca para a direita; negativo, para a esquerda.
+     */
+    public void encoderStrafeCm(double cm, double power) {
+        int ticks = (int) Math.round(cm * DrivetrainConfig.STRAFE_TICKS_PER_CM);
+
+        resetEncoders();
+
+        leftFrontMotor.setTargetPosition(ticks);
+        rightFrontMotor.setTargetPosition(-ticks);
+        leftBackMotor.setTargetPosition(-ticks);
+        rightBackMotor.setTargetPosition(ticks);
+
+        setRunMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        power = Math.abs(MathU.clamp(power, -1.0, 1.0));
+        setMecanumPowers(power, power, power, power);
+    }
+
+    public boolean isBusy() {
+        return leftFrontMotor.isBusy()
+                || rightFrontMotor.isBusy()
+                || leftBackMotor.isBusy()
+                || rightBackMotor.isBusy();
+    }
+
+    /**
+     * Distância média realmente registrada pelos quatro encoders desde
+     * o último reset. O sinal acompanha o comando enviado ao drive.
+     */
+    public double getAverageEncoderDistanceCm() {
+        double averageTicks = (
+                leftFrontMotor.getCurrentPosition()
+                        + rightFrontMotor.getCurrentPosition()
+                        + leftBackMotor.getCurrentPosition()
+                        + rightBackMotor.getCurrentPosition()
+        ) / 4.0;
+
+        return averageTicks / DrivetrainConfig.TICKS_PER_CM;
+    }
+
+    public double getAverageStrafeDistanceCm() {
+        double averageStrafeTicks = (
+                leftFrontMotor.getCurrentPosition()
+                        - rightFrontMotor.getCurrentPosition()
+                        - leftBackMotor.getCurrentPosition()
+                        + rightBackMotor.getCurrentPosition()
+        ) / 4.0;
+
+        return averageStrafeTicks / DrivetrainConfig.STRAFE_TICKS_PER_CM;
+    }
+
+    public void setRunMode(DcMotor.RunMode mode) {
+        leftFrontMotor.setMode(mode);
+        rightFrontMotor.setMode(mode);
+        leftBackMotor.setMode(mode);
+        rightBackMotor.setMode(mode);
+    }
+
+    public void setZeroPowerBehavior(DcMotor.ZeroPowerBehavior behavior) {
+        leftFrontMotor.setZeroPowerBehavior(behavior);
+        rightFrontMotor.setZeroPowerBehavior(behavior);
+        leftBackMotor.setZeroPowerBehavior(behavior);
+        rightBackMotor.setZeroPowerBehavior(behavior);
+    }
+}
+package org.firstinspires.ftc.teamcode.subsystems.intake;
+
+public class IntakeConfig {
+}
+package org.firstinspires.ftc.teamcode.subsystems.intake;
+
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+
+import org.firstinspires.ftc.teamcode.robot.RConstants;
+
+public class Intake {
+
+    private DcMotorEx feederMotor;
+
+    private boolean pushing = false;
+    private boolean continuous = false;
+    private boolean reversing = false;
+    private long pushStartTime = 0;
+
+    public void init(HardwareMap hardwareMap) {
+        feederMotor = hardwareMap.get(
+                DcMotorEx.class,
+                RConstants.FEEDER
+        );
+
+        feederMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        feederMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        rest();
+    }
+
+    public void update() {
+        // No modo contínuo, não usa o temporizador.
+        if (continuous || !pushing) {
+            return;
+        }
+
+        long elapsedTime =
+                System.currentTimeMillis() - pushStartTime;
+
+        if (elapsedTime >= RConstants.INTAKE_PUSH_TIME_MS) {
+            rest();
+        }
+    }
+
+    /**
+     * Alimentação temporizada: empurra apenas uma bola.
+     */
+    public boolean pushOne() {
+        if (pushing || continuous) {
+            return false;
+        }
+
+        reversing = false;
+        feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
+        pushStartTime = System.currentTimeMillis();
+        pushing = true;
+        return true;
+    }
+
+    /**
+     * Mantém o feeder funcionando continuamente.
+     */
+    public void startContinuous() {
+        continuous = true;
+        pushing = true;
+        reversing = false;
+
+        feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
+    }
+
+    /**
+     * Mantém o intake girando ao contrário para soltar uma bola presa.
+     */
+    public void startReverseContinuous() {
+        continuous = true;
+        pushing = true;
+        reversing = true;
+
+        feederMotor.setPower(RConstants.INTAKE_REVERSE_POWER);
+    }
+
+    /**
+     * Para o funcionamento contínuo.
+     */
+    public void stopContinuous() {
+        continuous = false;
+        rest();
+    }
+
+    public void rest() {
+        pushing = false;
+        reversing = false;
+        feederMotor.setPower(RConstants.INTAKE_REST_POWER);
+    }
+
+    public void stop() {
+        continuous = false;
+        rest();
+    }
+
+    public boolean isBusy() {
+        return pushing;
+    }
+
+    public boolean isContinuous() {
+        return continuous;
+    }
+
+    public boolean isReversing() {
+        return reversing;
+    }
+}
+package org.firstinspires.ftc.teamcode.subsystems.shooter;
+
+public class ShooterConfig {
+}
+package org.firstinspires.ftc.teamcode.subsystems.shooter;
+
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+
+import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.util.MathU;
+
+public class Shooter {
+
+    private DcMotorEx shooterMotorLeft;
+    private DcMotorEx shooterMotorRight;
+
+    private double targetRPM = 0.0;
+
+    public void init(HardwareMap hardwareMap) {
+        shooterMotorLeft = hardwareMap.get(
+                DcMotorEx.class,
+                RConstants.SHOOTER_LEFT
+        );
+
+        shooterMotorRight = hardwareMap.get(
+                DcMotorEx.class,
+                RConstants.SHOOTER_RIGHT
+        );
+
+        // Ajuste conforme a montagem física do shooter.
+        shooterMotorLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        shooterMotorRight.setDirection(DcMotorSimple.Direction.FORWARD);
+
+        configureMotor(shooterMotorLeft);
+        configureMotor(shooterMotorRight);
+    }
+
+    private void configureMotor(DcMotorEx motor) {
+        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+    }
+
+    /**
+     * Zera somente os encoders do shooter. Use com os motores parados no
+     * OpMode de calibração para medir ticks por volta do rolo.
+     */
+    public void resetEncoders() {
+        stop();
+        configureMotor(shooterMotorLeft);
+        configureMotor(shooterMotorRight);
+    }
+
+    public void setRPM(double rpm) {
+        if (!hasValidEncoderConversion()
+                || !hasNominalMotorRPMConfigured()) {
+            stop();
+            return;
+        }
+
+        double maximumAllowedRPM = getMaximumAllowedRollerRPM();
+        double minimumAllowedRPM = Math.min(
+                RConstants.MIN_SHOOTER_RPM,
+                maximumAllowedRPM
+        );
+
+        targetRPM = MathU.clamp(rpm, minimumAllowedRPM, maximumAllowedRPM);
+
+        double ticksPerSecond = rpmToTicksPerSecond(targetRPM);
+
+        shooterMotorLeft.setVelocity(ticksPerSecond);
+        shooterMotorRight.setVelocity(ticksPerSecond);
+    }
+
+    public void setRawPower(double power) {
+        double safePower = MathU.clamp(
+                power,
+                RConstants.MIN_MOTOR_POWER,
+                RConstants.MAX_MOTOR_POWER
+        );
+
+        targetRPM = 0.0;
+
+        shooterMotorLeft.setPower(safePower);
+        shooterMotorRight.setPower(safePower);
+    }
+
+    public void stop() {
+        targetRPM = 0.0;
+
+        stopMotor(shooterMotorLeft);
+        stopMotor(shooterMotorRight);
+    }
+
+    private void stopMotor(DcMotorEx motor) {
+        if (motor != null) {
+            motor.setVelocity(0.0);
+            motor.setPower(0.0);
+        }
+    }
+
+    public double getTargetRPM() {
+        return targetRPM;
+    }
+
+    public double getLeftRPM() {
+        return getRollerRPM(shooterMotorLeft);
+    }
+
+    public double getRightRPM() {
+        return getRollerRPM(shooterMotorRight);
+    }
+
+    /**
+     * Retorna a média da velocidade dos dois motores.
+     */
+    public double getCurrentRPM() {
+        return (getLeftRPM() + getRightRPM()) / 2.0;
+    }
+
+    /** RPM real do eixo de saída do motor esquerdo. */
+    public double getLeftMotorRPM() {
+        return getMotorRPM(shooterMotorLeft);
+    }
+
+    /** RPM real do eixo de saída do motor direito. */
+    public double getRightMotorRPM() {
+        return getMotorRPM(shooterMotorRight);
+    }
+
+    /** Ticks por segundo crus do encoder esquerdo. */
+    public double getLeftTicksPerSecond() {
+        return getTicksPerSecond(shooterMotorLeft);
+    }
+
+    /** Ticks por segundo crus do encoder direito. */
+    public double getRightTicksPerSecond() {
+        return getTicksPerSecond(shooterMotorRight);
+    }
+
+    public int getLeftEncoderPosition() {
+        return shooterMotorLeft == null
+                ? 0
+                : shooterMotorLeft.getCurrentPosition();
+    }
+
+    public int getRightEncoderPosition() {
+        return shooterMotorRight == null
+                ? 0
+                : shooterMotorRight.getCurrentPosition();
+    }
+
+    private double getTicksPerSecond(DcMotorEx motor) {
+        if (motor == null) {
+            return 0.0;
+        }
+
+        // abs evita valor negativo no motor cuja direção foi invertida.
+        return Math.abs(motor.getVelocity());
+    }
+
+    private double getMotorRPM(DcMotorEx motor) {
+        if (RConstants.SHOOTER_MOTOR_TICKS_PER_REV <= 0.0) {
+            return 0.0;
+        }
+
+        return (getTicksPerSecond(motor) * 60.0)
+                / RConstants.SHOOTER_MOTOR_TICKS_PER_REV;
+    }
+
+    private double getRollerRPM(DcMotorEx motor) {
+        if (!hasValidEncoderConversion()) {
+            return 0.0;
+        }
+
+        return getMotorRPM(motor)
+                / RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+    }
+
+    /**
+     * Só considera o shooter pronto quando os dois motores
+     * estiverem dentro da tolerância.
+     */
+    public boolean isAtTargetRPM() {
+        if (targetRPM <= 0.0) {
+            return false;
+        }
+
+        double leftError = Math.abs(getLeftRPM() - targetRPM);
+        double rightError = Math.abs(getRightRPM() - targetRPM);
+
+        return leftError <= RConstants.SHOOTER_READY_TOLERANCE_RPM
+                && rightError <= RConstants.SHOOTER_READY_TOLERANCE_RPM;
+    }
+
+    private double rpmToTicksPerSecond(double rpm) {
+        return rpm * RConstants.SHOOTER_TICKS_PER_ROLLER_REV / 60.0;
+    }
+
+    /**
+     * Maior RPM do rolo que o código aceitará. Quando o RPM nominal do motor
+     * estiver preenchido, o limite também respeita a transmissão das polias.
+     */
+    public double getMaximumAllowedRollerRPM() {
+        double configuredMaximum = RConstants.MAX_SHOOTER_RPM;
+
+        if (RConstants.SHOOTER_MOTOR_NOMINAL_RPM <= 0.0
+                || RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV <= 0.0) {
+            return configuredMaximum;
+        }
+
+        double nominalRollerRPM =
+                RConstants.SHOOTER_MOTOR_NOMINAL_RPM
+                        / RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+
+        return Math.min(configuredMaximum, nominalRollerRPM);
+    }
+
+    public double getNominalRollerRPM() {
+        if (RConstants.SHOOTER_MOTOR_NOMINAL_RPM <= 0.0
+                || RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV <= 0.0) {
+            return 0.0;
+        }
+
+        return RConstants.SHOOTER_MOTOR_NOMINAL_RPM
+                / RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+    }
+
+    public boolean hasNominalMotorRPMConfigured() {
+        return RConstants.SHOOTER_MOTOR_NOMINAL_RPM > 0.0;
+    }
+
+    public boolean hasValidEncoderConversion() {
+        return RConstants.SHOOTER_MOTOR_TICKS_PER_REV > 0.0
+                && RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV > 0.0
+                && RConstants.SHOOTER_TICKS_PER_ROLLER_REV > 0.0;
+    }
+}
+package org.firstinspires.ftc.teamcode.subsystems.viper;
+
+public class ViperConfig {
+}
+package org.firstinspires.ftc.teamcode.subsystems.viper;
+
+public class Viper {
+}
