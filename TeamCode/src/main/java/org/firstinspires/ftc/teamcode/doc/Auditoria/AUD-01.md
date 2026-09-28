@@ -1,0 +1,365 @@
+# AUD-001 — Auditoria do Núcleo do Robô
+
+**Projeto:** MannaTeam FTC 31211 — 2026
+**Área:** `TeamCode/src/main/java/org/firstinspires/ftc/teamcode/`
+**Diretórios analisados:** `robot/` e `config/`
+**Status:** Auditoria concluída — aguardando validação para prosseguir
+**Tipo:** Auditoria estrutural e arquitetural
+**Alteração de código:** Nenhuma
+
+---
+
+## 1. Objetivo
+
+Realizar a primeira auditoria estrutural do projeto, concentrando a análise no núcleo responsável pela definição e configuração do robô.
+
+Foram analisados os seguintes arquivos:
+
+```text
+robot/
+├── RConstants.java
+└── Robot.java
+
+config/
+├── HardwareConfig.java
+└── RobotConfig.java
+```
+
+O objetivo desta etapa foi compreender as responsabilidades atuais, identificar relações entre configuração e arquitetura do robô e registrar pontos que deverão ser investigados nas etapas seguintes.
+
+---
+
+## 2. Situação encontrada
+
+O projeto apresenta sinais claros de uma evolução de uma arquitetura mais centralizada para uma arquitetura modular baseada em subsistemas.
+
+A estrutura atual já possui:
+
+```text
+subsystems/
+├── drivetrain/
+├── intake/
+├── shooter/
+└── viper/
+```
+
+com arquivos de configuração específicos para cada subsistema.
+
+Entretanto, o núcleo `robot/` e parte da estrutura `config/` ainda não estão implementados de forma efetiva.
+
+As classes:
+
+```text
+Robot.java
+HardwareConfig.java
+RobotConfig.java
+```
+
+encontram-se vazias.
+
+Consequentemente, a composição central do robô ainda não está formalizada por uma classe `Robot`.
+
+---
+
+## 3. `Robot.java`
+
+A classe `Robot` encontra-se atualmente vazia.
+
+Não existe ainda uma implementação centralizada responsável por:
+
+* receber o `HardwareMap`;
+* inicializar os subsistemas;
+* manter referências aos componentes do robô;
+* coordenar a inicialização;
+* fornecer uma composição única do robô aos `OpModes`.
+
+### Registro
+
+A existência da classe indica uma possível intenção arquitetural de criar uma camada de composição do robô, porém sua responsabilidade ainda não deve ser definida nesta etapa.
+
+**Decisão:** não implementar `Robot.java` durante a AUD-001.
+
+É necessário analisar primeiro os subsistemas e os `OpModes` para determinar quais responsabilidades devem efetivamente pertencer a essa classe.
+
+---
+
+## 4. `HardwareConfig.java`
+
+A classe `HardwareConfig` encontra-se vazia.
+
+Ao mesmo tempo, nomes de dispositivos de hardware já estão distribuídos em outras partes do projeto, principalmente em `RConstants.java` e nas configurações específicas dos subsistemas.
+
+Isso indica a coexistência de diferentes estratégias de configuração.
+
+### Ponto de investigação
+
+Deverá ser determinado posteriormente onde devem residir:
+
+* nomes de motores;
+* nomes de servos;
+* nomes de sensores;
+* nomes de câmeras;
+* demais identificadores utilizados pelo `HardwareMap`.
+
+**Decisão:** nenhuma migração de configuração será realizada nesta etapa.
+
+---
+
+## 5. `RobotConfig.java`
+
+A classe `RobotConfig` também se encontra vazia.
+
+O projeto, entretanto, já possui configurações específicas:
+
+```text
+DrivetrainConfig
+IntakeConfig
+ShooterConfig
+ViperConfig
+```
+
+Existe, portanto, uma possível arquitetura hierárquica de configuração ainda não consolidada.
+
+Uma hipótese a ser investigada é:
+
+```text
+RobotConfig
+├── DrivetrainConfig
+├── IntakeConfig
+├── ShooterConfig
+└── ViperConfig
+```
+
+Essa estrutura **não foi adotada como decisão arquitetural nesta auditoria**.
+
+Será necessário verificar primeiro como as configurações são utilizadas atualmente.
+
+---
+
+## 6. `RConstants.java`
+
+`RConstants` é atualmente o principal concentrador de parâmetros do projeto.
+
+O arquivo contém diferentes categorias de configuração, incluindo:
+
+* nomes de hardware;
+* limites de motores;
+* parâmetros de controle;
+* parâmetros de PID;
+* configuração do shooter;
+* configuração do intake;
+* parâmetros de câmera;
+* parâmetros de AprilTag;
+* parâmetros de autônomo;
+* tolerâncias;
+* tempos limite;
+* feature flags.
+
+Isso caracteriza `RConstants` como um **container global de configuração**.
+
+---
+
+## 7. Principal observação arquitetural
+
+Foi identificada a coexistência de dois modelos.
+
+### Modelo centralizado
+
+```text
+RConstants
+├── Hardware
+├── Drivetrain
+├── Shooter
+├── Intake
+├── Vision
+├── Autonomous
+└── Controle
+```
+
+### Modelo modular
+
+```text
+DrivetrainConfig
+IntakeConfig
+ShooterConfig
+ViperConfig
+```
+
+A coexistência desses modelos sugere que o projeto está passando por uma **transição arquitetural ainda não concluída**.
+
+Essa conclusão deverá ser confirmada através da análise dos consumidores dessas configurações.
+
+---
+
+## 8. Princípio arquitetural a investigar
+
+Foi identificado um possível princípio de organização que poderá ser aplicado futuramente:
+
+> Configurações específicas devem permanecer próximas do componente ao qual pertencem.
+
+Por exemplo:
+
+```text
+subsystems/shooter/
+├── Shooter.java
+└── ShooterConfig.java
+```
+
+e:
+
+```text
+subsystems/drivetrain/
+├── Drivetrain.java
+└── DrivetrainConfig.java
+```
+
+Entretanto, este princípio ainda não foi transformado em regra definitiva do projeto.
+
+---
+
+## 9. Registro de investigação
+
+### AUD-001-R01 — Parâmetros do Shooter
+
+Foi identificada uma possível inconsistência entre:
+
+```text
+MANUAL_SHOOTER_RPM
+```
+
+e:
+
+```text
+MIN_SHOOTER_RPM
+```
+
+O valor configurado para operação manual é inferior ao limite mínimo utilizado pelo controle de RPM.
+
+É necessário verificar o fluxo real de utilização desses parâmetros antes de classificar a situação como erro.
+
+**Ação futura:** analisar `Shooter.java`, `ShooterLista.java`, `NovoTeleop.java` e `CalibrarDistanciaRPM.java`.
+
+---
+
+## 10. Feature Flags
+
+`RConstants` também contém flags como:
+
+```text
+USE_CAMERA
+USE_SHOOTER
+USE_FEEDER
+```
+
+Essas flags indicam uma intenção de permitir diferentes configurações de hardware durante desenvolvimento ou testes.
+
+Ainda não foi determinado se todas as flags possuem efeito efetivo no comportamento do sistema.
+
+**Ação futura:** verificar seus consumidores nos `OpModes` e subsistemas.
+
+---
+
+## 11. Modelo conceitual preliminar
+
+Com base exclusivamente nesta auditoria, o modelo conceitual atual pode ser representado como:
+
+```text
+                    ROBÔ
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+     Configuração             Subsistemas
+          │                       │
+     RConstants          ┌────────┼────────┐
+          │              │        │        │
+          │           Drive    Intake   Shooter
+          │
+          └──── parâmetros e configurações
+```
+
+Esse modelo é **preliminar**.
+
+A composição real do robô ainda precisa ser determinada a partir da análise dos subsistemas e dos `OpModes`.
+
+---
+
+## 12. Avaliação da etapa
+
+| Área                        | Situação                                   |
+| --------------------------- | ------------------------------------------ |
+| `Robot.java`                | Estrutura existente, implementação ausente |
+| `HardwareConfig.java`       | Estrutura existente, implementação ausente |
+| `RobotConfig.java`          | Estrutura existente, implementação ausente |
+| `RConstants.java`           | Concentrador global de configuração        |
+| Configuração por subsistema | Estrutura existente                        |
+| Separação por subsistemas   | Direção arquitetural positiva              |
+| Composição central do robô  | Ainda não implementada                     |
+| Modelo de configuração      | Híbrido                                    |
+| Refatoração imediata        | Não recomendada                            |
+| Investigação adicional      | Necessária                                 |
+
+---
+
+## 13. Decisões da AUD-001
+
+Durante esta etapa, foram estabelecidas as seguintes decisões:
+
+1. **Nenhum arquivo foi alterado.**
+2. `Robot.java` não será implementado neste momento.
+3. `HardwareConfig.java` não será preenchido neste momento.
+4. `RobotConfig.java` não será preenchido neste momento.
+5. `RConstants.java` não será refatorado nesta etapa.
+6. A existência de configurações específicas por subsistema será preservada.
+7. A possível migração de parâmetros de `RConstants` será analisada posteriormente.
+8. A arquitetura definitiva somente será estabelecida após a auditoria dos subsistemas e dos `OpModes`.
+
+---
+
+## 14. Próxima etapa
+
+A próxima auditoria prevista é:
+
+```text
+AUD-002 — Auditoria do Drivetrain
+```
+
+Arquivos:
+
+```text
+subsystems/drivetrain/
+├── DrivetrainConfig.java
+└── Drivetrain.java
+```
+
+A AUD-002 deverá investigar:
+
+* responsabilidade do drivetrain;
+* inicialização dos motores;
+* configuração;
+* direção dos motores;
+* encoders;
+* IMU;
+* controle de movimento;
+* PID;
+* dependências;
+* relação com `RConstants`;
+* relação com localização;
+* relação com os `OpModes`;
+* possíveis responsabilidades que atualmente estão fora do drivetrain.
+
+**Nenhuma alteração deverá ser realizada antes da validação da AUD-002.**
+
+---
+
+## 15. Status
+
+```text
+AUD-001
+────────────────────────────────
+Status: CONCLUÍDA
+Código alterado: NÃO
+Documentação: REGISTRADA
+Próxima etapa: AUD-002
+Avanço: BLOQUEADO POR VALIDAÇÃO
+────────────────────────────────
+```
