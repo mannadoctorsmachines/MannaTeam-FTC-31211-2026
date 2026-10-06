@@ -18,12 +18,12 @@ public class Shooter {
     public void init(HardwareMap hardwareMap) {
         shooterMotorLeft = hardwareMap.get(
                 DcMotorEx.class,
-                RConstants.SHOOTER_LEFT
+                ShooterConfig.SHOOTER_LEFT
         );
 
         shooterMotorRight = hardwareMap.get(
                 DcMotorEx.class,
-                RConstants.SHOOTER_RIGHT
+                ShooterConfig.SHOOTER_RIGHT
         );
 
         // Ajuste conforme a montagem física do shooter.
@@ -59,11 +59,15 @@ public class Shooter {
 
         double maximumAllowedRPM = getMaximumAllowedRollerRPM();
         double minimumAllowedRPM = Math.min(
-                RConstants.MIN_SHOOTER_RPM,
+                ShooterConfig.MIN_SHOOTER_RPM,
                 maximumAllowedRPM
         );
 
-        targetRPM = MathU.clamp(rpm, minimumAllowedRPM, maximumAllowedRPM);
+        targetRPM = MathU.clamp(
+                rpm,
+                minimumAllowedRPM,
+                maximumAllowedRPM
+        );
 
         double ticksPerSecond = rpmToTicksPerSecond(targetRPM);
 
@@ -159,12 +163,12 @@ public class Shooter {
     }
 
     private double getMotorRPM(DcMotorEx motor) {
-        if (RConstants.SHOOTER_MOTOR_TICKS_PER_REV <= 0.0) {
+        if (ShooterConfig.SHOOTER_MOTOR_TICKS_PER_REV <= 0.0) {
             return 0.0;
         }
 
         return (getTicksPerSecond(motor) * 60.0)
-                / RConstants.SHOOTER_MOTOR_TICKS_PER_REV;
+                / ShooterConfig.SHOOTER_MOTOR_TICKS_PER_REV;
     }
 
     private double getRollerRPM(DcMotorEx motor) {
@@ -173,7 +177,7 @@ public class Shooter {
         }
 
         return getMotorRPM(motor)
-                / RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+                / ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
     }
 
     /**
@@ -188,12 +192,12 @@ public class Shooter {
         double leftError = Math.abs(getLeftRPM() - targetRPM);
         double rightError = Math.abs(getRightRPM() - targetRPM);
 
-        return leftError <= RConstants.SHOOTER_READY_TOLERANCE_RPM
-                && rightError <= RConstants.SHOOTER_READY_TOLERANCE_RPM;
+        return leftError <= ShooterConfig.SHOOTER_READY_TOLERANCE_RPM
+                && rightError <= ShooterConfig.SHOOTER_READY_TOLERANCE_RPM;
     }
 
     private double rpmToTicksPerSecond(double rpm) {
-        return rpm * RConstants.SHOOTER_TICKS_PER_ROLLER_REV / 60.0;
+        return rpm * ShooterConfig.SHOOTER_TICKS_PER_ROLLER_REV / 60.0;
     }
 
     /**
@@ -201,37 +205,37 @@ public class Shooter {
      * estiver preenchido, o limite também respeita a transmissão das polias.
      */
     public double getMaximumAllowedRollerRPM() {
-        double configuredMaximum = RConstants.MAX_SHOOTER_RPM;
+        double configuredMaximum = ShooterConfig.MAX_SHOOTER_RPM;
 
-        if (RConstants.SHOOTER_MOTOR_NOMINAL_RPM <= 0.0
-                || RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV <= 0.0) {
+        if (ShooterConfig.SHOOTER_MOTOR_NOMINAL_RPM <= 0.0
+                || ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV <= 0.0) {
             return configuredMaximum;
         }
 
         double nominalRollerRPM =
-                RConstants.SHOOTER_MOTOR_NOMINAL_RPM
-                        / RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+                ShooterConfig.SHOOTER_MOTOR_NOMINAL_RPM
+                        / ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
 
         return Math.min(configuredMaximum, nominalRollerRPM);
     }
 
     public double getNominalRollerRPM() {
-        if (RConstants.SHOOTER_MOTOR_NOMINAL_RPM <= 0.0
-                || RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV <= 0.0) {
+        if (ShooterConfig.SHOOTER_MOTOR_NOMINAL_RPM <= 0.0
+                || ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV <= 0.0) {
             return 0.0;
         }
 
-        return RConstants.SHOOTER_MOTOR_NOMINAL_RPM
-                / RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
+        return ShooterConfig.SHOOTER_MOTOR_NOMINAL_RPM
+                / ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV;
     }
 
     public boolean hasNominalMotorRPMConfigured() {
-        return RConstants.SHOOTER_MOTOR_NOMINAL_RPM > 0.0;
+        return ShooterConfig.SHOOTER_MOTOR_NOMINAL_RPM > 0.0;
     }
 
     public boolean hasValidEncoderConversion() {
-        return RConstants.SHOOTER_MOTOR_TICKS_PER_REV > 0.0
-                && RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV > 0.0
-                && RConstants.SHOOTER_TICKS_PER_ROLLER_REV > 0.0;
+        return ShooterConfig.SHOOTER_MOTOR_TICKS_PER_REV > 0.0
+                && ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV > 0.0
+                && ShooterConfig.SHOOTER_TICKS_PER_ROLLER_REV > 0.0;
     }
 }
