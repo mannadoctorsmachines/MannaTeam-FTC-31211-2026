@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.opmodes;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.robot.Robot;
 import org.firstinspires.ftc.teamcode.robot.RConstants;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
@@ -24,6 +25,7 @@ public class TeleopTest2 extends OpMode {
 
     private Drivetrain drive;
     private AprilTagCamera camera;
+    private Robot robot;
     private Shooter shooter;
     private Intake intake;
 
@@ -64,8 +66,9 @@ public class TeleopTest2 extends OpMode {
         }
 
         if (RConstants.USE_SHOOTER) {
-            shooter = new Shooter();
-            shooter.init(hardwareMap);
+            robot = new Robot();
+            robot.init(hardwareMap);
+            shooter = robot.getShooter();
         }
 
         if (RConstants.USE_FEEDER) {
@@ -322,7 +325,7 @@ public class TeleopTest2 extends OpMode {
         telemetry.addData("Distância câmera crua (cm)", lastRawCameraDistanceCm);
         telemetry.addData("Distância corrigida sem filtro (cm)",
                 lastUnfilteredShooterDistanceCm);
-        telemetry.addData("Distância usada pelo auto (cm)", lastShooterDistanceCm);
+        telemetry.addData("Distância usada pelo auto", lastShooterDistanceCm);
         telemetry.addData("Distância dentro da tabela",
                 shooterTable.isDistanceInsideTable(lastShooterDistanceCm));
         telemetry.addData("RPM calculado pela câmera", lastTargetRPM);
