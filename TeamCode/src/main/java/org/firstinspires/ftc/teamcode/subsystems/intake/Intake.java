@@ -4,7 +4,6 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.robot.RConstants;
 
 public class Intake {
 
@@ -18,7 +17,7 @@ public class Intake {
     public void init(HardwareMap hardwareMap) {
         feederMotor = hardwareMap.get(
                 DcMotorEx.class,
-                RConstants.FEEDER
+                IntakeConfig.FEEDER
         );
 
         feederMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -36,7 +35,7 @@ public class Intake {
         long elapsedTime =
                 System.currentTimeMillis() - pushStartTime;
 
-        if (elapsedTime >= RConstants.INTAKE_PUSH_TIME_MS) {
+        if (elapsedTime >= IntakeConfig.INTAKE_PUSH_TIME_MS) {
             rest();
         }
     }
@@ -50,7 +49,7 @@ public class Intake {
         }
 
         reversing = false;
-        feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
+        feederMotor.setPower(IntakeConfig.INTAKE_PUSH_POWER);
         pushStartTime = System.currentTimeMillis();
         pushing = true;
         return true;
@@ -64,7 +63,7 @@ public class Intake {
         pushing = true;
         reversing = false;
 
-        feederMotor.setPower(RConstants.INTAKE_PUSH_POWER);
+        feederMotor.setPower(IntakeConfig.INTAKE_PUSH_POWER);
     }
 
     /**
@@ -75,7 +74,7 @@ public class Intake {
         pushing = true;
         reversing = true;
 
-        feederMotor.setPower(RConstants.INTAKE_REVERSE_POWER);
+        feederMotor.setPower(IntakeConfig.INTAKE_REVERSE_POWER);
     }
 
     /**
@@ -89,7 +88,7 @@ public class Intake {
     public void rest() {
         pushing = false;
         reversing = false;
-        feederMotor.setPower(RConstants.INTAKE_REST_POWER);
+        feederMotor.setPower(IntakeConfig.INTAKE_REST_POWER);
     }
 
     public void stop() {

@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.util;
 
-import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
+
 
 public class ShooterLista {
 
@@ -46,7 +47,7 @@ public class ShooterLista {
 
     public double getRPMForDistance(double distanceCm) {
         if (!isTableValid()) {
-            return RConstants.DEFAULT_SHOOTER_RPM;
+            return ShooterConfig.DEFAULT_SHOOTER_RPM;
         }
 
         if (distanceCm <= getDistanceAt(0)) {
@@ -77,7 +78,7 @@ public class ShooterLista {
             }
         }
 
-        return RConstants.DEFAULT_SHOOTER_RPM;
+        return ShooterConfig.DEFAULT_SHOOTER_RPM;
     }
 
     public double getMinimumCalibratedDistanceCm() {
@@ -113,8 +114,8 @@ public class ShooterLista {
     private double clampRPM(double rpm) {
         return MathU.clamp(
                 rpm,
-                RConstants.MIN_SHOOTER_RPM,
-                RConstants.MAX_SHOOTER_RPM
+                ShooterConfig.MIN_SHOOTER_RPM,
+                ShooterConfig.MAX_SHOOTER_RPM
         );
     }
 

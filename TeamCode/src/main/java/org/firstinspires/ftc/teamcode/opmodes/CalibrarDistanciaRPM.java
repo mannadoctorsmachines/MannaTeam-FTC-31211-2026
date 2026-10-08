@@ -1,16 +1,19 @@
 package org.firstinspires.ftc.teamcode.opmodes;
 
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.robot.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.Vision;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
 
 /**
@@ -20,18 +23,19 @@ import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
 @TeleOp(name = "DECODE Calibrar Distancia e RPM", group = "Calibration")
 public class CalibrarDistanciaRPM extends OpMode {
 
-    private AprilTagCamera camera;
+    private Robot robot;
+    private Vision vision;
     private Shooter shooter;
     private Intake intake;
     private CalcDistAlvo distanceCalculator;
     private ShooterLista shooterTable;
     private Drivetrain drive;
 
-    private double selectedRPM = RConstants.MANUAL_SHOOTER_RPM;
+    private double selectedRPM = ShooterConfig.MANUAL_SHOOTER_RPM;
     private double rawCameraDistanceCm = 0.0;
     private double unfilteredShooterDistanceCm = 0.0;
     private double filteredShooterDistanceCm = 0.0;
-    private double tableSuggestedRPM = RConstants.DEFAULT_SHOOTER_RPM;
+    private double tableSuggestedRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
 
     private boolean hasCameraSolution = false;
     private long lastCameraSolutionTimeMs = 0;
@@ -56,23 +60,15 @@ public class CalibrarDistanciaRPM extends OpMode {
     public void init() {
         distanceCalculator = new CalcDistAlvo();
         shooterTable = new ShooterLista();
-        drive = new Drivetrain();
-        drive.init(hardwareMap);
 
-        if (RConstants.USE_CAMERA) {
-            camera = new AprilTagCamera();
-            camera.init(hardwareMap);
-        }
+        robot = new Robot();
+        robot.init(hardwareMap);
+        robot.initVision(hardwareMap);
 
-        if (RConstants.USE_SHOOTER) {
-            shooter = new Shooter();
-            shooter.init(hardwareMap);
-        }
-
-        if (RConstants.USE_FEEDER) {
-            intake = new Intake();
-            intake.init(hardwareMap);
-        }
+        drive = robot.getDrivetrain();
+        vision = robot.getVision();
+        shooter = robot.getShooter();
+        intake = robot.getIntake();
 
         telemetry.addLine("Calibração pronta. O drive não será acionado.");
         telemetry.addLine("Use o gamepad2 e mantenha o robô parado.");
@@ -81,6 +77,7 @@ public class CalibrarDistanciaRPM extends OpMode {
 
     @Override
     public void loop() {
+        robot.update();
         updateDrive();
         updateCamera();
         updateSelectedRPM();
@@ -130,10 +127,10 @@ public class CalibrarDistanciaRPM extends OpMode {
             lateral = 0.0;
             yaw = 0.0;
 
-            if (camera != null && camera.hasTarget()) {
-                double bearingDegrees = camera.getBearingDegrees();
+            if (vision != null && vision.hasTarget()) {
+                double bearingDegrees = vision.getBearingDegrees();
                 alignedWithTag = Math.abs(bearingDegrees)
-                        <= RConstants.AIM_TOLERANCE_DEGREES;
+                        <= VisionConfig.AIM_TOLERANCE_DEGREES;
 
                 if (!alignedWithTag) {
                     double targetHeadingDegrees =
@@ -148,17 +145,17 @@ public class CalibrarDistanciaRPM extends OpMode {
     }
 
     private void updateCamera() {
-        if (camera == null) {
+        if (vision == null) {
             return;
         }
 
-        camera.update();
-
-        if (!camera.hasTarget()) {
+        // robot.update() já atualizou a visão neste ciclo. A distância só é
+        // usada se o provider mede range (a Limelight atual não mede).
+        if (!vision.hasTarget() || !vision.hasRange()) {
             return;
         }
 
-        int currentTargetId = camera.getTargetId();
+        int currentTargetId = vision.getTargetId();
         boolean solutionExpired = !hasFreshCameraSolution();
         boolean targetChanged = lastTargetId >= 0 && currentTargetId != lastTargetId;
 
@@ -166,7 +163,7 @@ public class CalibrarDistanciaRPM extends OpMode {
             distanceCalculator.resetDistanceFilter();
         }
 
-        double rangeInches = camera.getRangeInches();
+        double rangeInches = vision.getRangeInches();
         rawCameraDistanceCm = distanceCalculator.getCameraDistanceCm(rangeInches);
         unfilteredShooterDistanceCm =
                 distanceCalculator.getShooterDistanceCm(rangeInches);
@@ -183,24 +180,24 @@ public class CalibrarDistanciaRPM extends OpMode {
     private boolean hasFreshCameraSolution() {
         return hasCameraSolution
                 && System.currentTimeMillis() - lastCameraSolutionTimeMs
-                <= RConstants.CAMERA_SOLUTION_MAX_AGE_MS;
+                <= VisionConfig.CAMERA_SOLUTION_MAX_AGE_MS;
     }
 
     private void updateSelectedRPM() {
         if (gamepad2.dpad_up && !previousDpadUp) {
-            changeSelectedRPM(RConstants.SHOOTER_CALIBRATION_COARSE_STEP_RPM);
+            changeSelectedRPM(ShooterConfig.SHOOTER_CALIBRATION_COARSE_STEP_RPM);
         }
 
         if (gamepad2.dpad_down && !previousDpadDown) {
-            changeSelectedRPM(-RConstants.SHOOTER_CALIBRATION_COARSE_STEP_RPM);
+            changeSelectedRPM(-ShooterConfig.SHOOTER_CALIBRATION_COARSE_STEP_RPM);
         }
 
         if (gamepad2.dpad_right && !previousDpadRight) {
-            changeSelectedRPM(RConstants.SHOOTER_CALIBRATION_FINE_STEP_RPM);
+            changeSelectedRPM(ShooterConfig.SHOOTER_CALIBRATION_FINE_STEP_RPM);
         }
 
         if (gamepad2.dpad_left && !previousDpadLeft) {
-            changeSelectedRPM(-RConstants.SHOOTER_CALIBRATION_FINE_STEP_RPM);
+            changeSelectedRPM(-ShooterConfig.SHOOTER_CALIBRATION_FINE_STEP_RPM);
         }
 
         if (gamepad2.y && !previousY) {
@@ -234,8 +231,8 @@ public class CalibrarDistanciaRPM extends OpMode {
     private double clampRPM(double rpm) {
         return MathU.clamp(
                 rpm,
-                RConstants.MIN_SHOOTER_RPM,
-                RConstants.MAX_SHOOTER_RPM
+                ShooterConfig.MIN_SHOOTER_RPM,
+                ShooterConfig.MAX_SHOOTER_RPM
         );
     }
 
@@ -246,10 +243,6 @@ public class CalibrarDistanciaRPM extends OpMode {
         boolean reverseIntakeRequested = gamepad2.right_trigger
                 > RConstants.GAMEPAD_TRIGGER_THRESHOLD;
         boolean singleShotRequested = gamepad2.a && !previousA;
-
-        if (intake != null) {
-            intake.update();
-        }
 
         if (emergencyStop) {
             stopMechanisms();
@@ -306,15 +299,15 @@ public class CalibrarDistanciaRPM extends OpMode {
     private boolean isMinimumSpinupComplete() {
         return shooterRunning
                 && System.currentTimeMillis() - shooterStartTimeMs
-                >= RConstants.SHOOTER_SPINUP_DELAY_MS;
+                >= ShooterConfig.SHOOTER_SPINUP_DELAY_MS;
     }
 
     private void sendTelemetry() {
         telemetry.addLine("----- AJUSTE DO RPM -----");
         telemetry.addData("D-pad cima/baixo", "+/- %.0f RPM",
-                RConstants.SHOOTER_CALIBRATION_COARSE_STEP_RPM);
+                ShooterConfig.SHOOTER_CALIBRATION_COARSE_STEP_RPM);
         telemetry.addData("D-pad direita/esquerda", "+/- %.0f RPM",
-                RConstants.SHOOTER_CALIBRATION_FINE_STEP_RPM);
+                ShooterConfig.SHOOTER_CALIBRATION_FINE_STEP_RPM);
         telemetry.addData("RPM selecionado DO ROLO", selectedRPM);
         telemetry.addData("Y carrega RPM da tabela", tableSuggestedRPM);
 
@@ -329,9 +322,9 @@ public class CalibrarDistanciaRPM extends OpMode {
         telemetry.addLine("----- CÂMERA E DISTÂNCIA -----");
         telemetry.addData("AprilTag atual", hasFreshCameraSolution());
 
-        if (camera != null && camera.hasTarget()) {
-            telemetry.addData("Tag ID", camera.getTargetId());
-            telemetry.addData("Range da câmera (in)", camera.getRangeInches());
+        if (vision != null && vision.hasTarget()) {
+            telemetry.addData("Tag ID", vision.getTargetId());
+            telemetry.addData("Range da câmera (in)", vision.getRangeInches());
         }
 
         telemetry.addData("Distância câmera crua (cm)", rawCameraDistanceCm);
@@ -353,13 +346,13 @@ public class CalibrarDistanciaRPM extends OpMode {
 
         if (shooter != null) {
             telemetry.addData("Ticks/volta do motor",
-                    RConstants.SHOOTER_MOTOR_TICKS_PER_REV);
+                    ShooterConfig.SHOOTER_MOTOR_TICKS_PER_REV);
             telemetry.addData("RPM nominal do motor",
-                    RConstants.SHOOTER_MOTOR_NOMINAL_RPM);
+                    ShooterConfig.SHOOTER_MOTOR_NOMINAL_RPM);
             telemetry.addData("Voltas motor / volta rolo",
-                    RConstants.SHOOTER_MOTOR_REVS_PER_ROLLER_REV);
+                    ShooterConfig.SHOOTER_MOTOR_REVS_PER_ROLLER_REV);
             telemetry.addData("Ticks/volta do rolo",
-                    RConstants.SHOOTER_TICKS_PER_ROLLER_REV);
+                    ShooterConfig.SHOOTER_TICKS_PER_ROLLER_REV);
             telemetry.addData("RPM nominal calculado do rolo",
                     shooter.getNominalRollerRPM());
             telemetry.addData("RPM máximo aceito pelo código",
@@ -427,8 +420,9 @@ public class CalibrarDistanciaRPM extends OpMode {
     public void stop() {
         stopMechanisms();
 
-        if (camera != null) {
-            camera.close();
+        if (robot != null) {
+            robot.stopAll();
+            robot.closeVision();
         }
     }
 }

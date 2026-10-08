@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.backups;
 
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -10,7 +12,7 @@ import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.apriltag.AprilTagCamera;
 
 @TeleOp(name = "TeleopTeste", group = "Competition unofficial")
 public class TeleopTest extends OpMode {
@@ -24,7 +26,7 @@ public class TeleopTest extends OpMode {
     private ShooterLista shooterTable;
 
     private double lastShooterDistanceCm = 0.0;
-    private double lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
+    private double lastTargetRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
     private boolean hasCameraShooterSolution = false;
     private long lastCameraSolutionTimeMs = 0;
 
@@ -101,7 +103,7 @@ public class TeleopTest extends OpMode {
     private boolean hasFreshCameraShooterSolution() {
         return hasCameraShooterSolution
                 && System.currentTimeMillis() - lastCameraSolutionTimeMs
-                <= RConstants.CAMERA_SOLUTION_MAX_AGE_MS;
+                <= VisionConfig.CAMERA_SOLUTION_MAX_AGE_MS;
     }
 
     private void updateDrive() {
@@ -152,7 +154,7 @@ public class TeleopTest extends OpMode {
             if (camera != null && camera.hasTarget()) {
                 double bearingDegrees = camera.getBearingDegrees();
                 alignedWithTag = Math.abs(bearingDegrees)
-                        <= RConstants.AIM_TOLERANCE_DEGREES;
+                        <= VisionConfig.AIM_TOLERANCE_DEGREES;
 
                 if (!alignedWithTag) {
                     double targetHeadingDegrees =
@@ -195,7 +197,7 @@ public class TeleopTest extends OpMode {
             // Se a câmera ainda não encontrou a tag, usa o RPM padrão.
             double requestedRPM = hasFreshCameraShooterSolution()
                     ? lastTargetRPM
-                    : RConstants.DEFAULT_SHOOTER_RPM;
+                    : ShooterConfig.DEFAULT_SHOOTER_RPM;
 
             shooter.setRPM(requestedRPM);
         } else {
@@ -211,7 +213,7 @@ public class TeleopTest extends OpMode {
                 : 0;
 
         boolean delayedIntakeFromShooter = shooterSequenceActive
-                && shooterElapsedMs >= RConstants.SHOOTER_SPINUP_DELAY_MS;
+                && shooterElapsedMs >= ShooterConfig.SHOOTER_SPINUP_DELAY_MS;
 
         // RB controla apenas o intake. LB controla o shooter e, após o atraso,
         // também libera o intake. Nenhum comando de RB liga o shooter.

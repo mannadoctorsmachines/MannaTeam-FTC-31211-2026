@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.subsystems.drivetrain;
 
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -9,13 +8,11 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.robot.RConstants;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.control.PIDController;
 
 public class Drivetrain {
 
-    GoBildaPinpointDriver odo;
     private DcMotorEx leftFrontMotor;
     private DcMotorEx rightFrontMotor;
     private DcMotorEx leftBackMotor;
@@ -25,8 +22,6 @@ public class Drivetrain {
     private PIDController turnPID;
 
     public void init(HardwareMap hardwareMap) {
-        odo = hardwareMap.get(GoBildaPinpointDriver.class, "odmetry");
-
         leftFrontMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.LEFT_DRIVE);
         rightFrontMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.RIGHT_DRIVE);
         leftBackMotor = hardwareMap.get(DcMotorEx.class, DrivetrainConfig.LEFTB_DRIVE);
@@ -36,9 +31,9 @@ public class Drivetrain {
         configureImu(hardwareMap);
 
         turnPID = new PIDController(
-                RConstants.TURN_KP,
-                RConstants.TURN_KI,
-                RConstants.TURN_KD
+                DrivetrainConfig.TURN_KP,
+                DrivetrainConfig.TURN_KI,
+                DrivetrainConfig.TURN_KD
         );
     }
 
@@ -54,7 +49,7 @@ public class Drivetrain {
     }
 
     private void configureImu(HardwareMap hardwareMap) {
-        imu = hardwareMap.get(IMU.class, RConstants.IMU);
+        imu = hardwareMap.get(IMU.class, DrivetrainConfig.IMU);
 
         IMU.Parameters parameters = new IMU.Parameters(
                 new RevHubOrientationOnRobot(
@@ -133,7 +128,7 @@ public class Drivetrain {
         double currentHeading = getHeadingDegrees();
         double error = MathU.normalizarAngulo(targetHeadingDegrees - currentHeading);
 
-        if (Math.abs(error) <= RConstants.TURN_TOLERANCE_DEGREES) {
+        if (Math.abs(error) <= DrivetrainConfig.TURN_TOLERANCE_DEGREES) {
             return 0.0;
         }
 
@@ -141,12 +136,12 @@ public class Drivetrain {
 
         output = MathU.clamp(
                 output,
-                -RConstants.TURN_MAX_POWER,
-                RConstants.TURN_MAX_POWER
+                -DrivetrainConfig.TURN_MAX_POWER,
+                DrivetrainConfig.TURN_MAX_POWER
         );
 
-        if (Math.abs(output) < RConstants.TURN_MIN_POWER) {
-            output = Math.copySign(RConstants.TURN_MIN_POWER, output);
+        if (Math.abs(output) < DrivetrainConfig.TURN_MIN_POWER) {
+            output = Math.copySign(DrivetrainConfig.TURN_MIN_POWER, output);
         }
 
         return output;

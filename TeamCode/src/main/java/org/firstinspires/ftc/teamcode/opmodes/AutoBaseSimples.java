@@ -1,9 +1,12 @@
 package org.firstinspires.ftc.teamcode.opmodes;
 
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.robot.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
@@ -19,6 +22,7 @@ import org.firstinspires.ftc.teamcode.util.ShooterLista;
  */
 public abstract class AutoBaseSimples extends LinearOpMode {
 
+    protected Robot robot;
     protected Drivetrain drive;
     protected Shooter shooter;
     protected Intake intake;
@@ -27,20 +31,14 @@ public abstract class AutoBaseSimples extends LinearOpMode {
     private boolean autoInterrompido = false;
 
     protected void iniciarSistemas() {
-        drive = new Drivetrain();
-        drive.init(hardwareMap);
+        robot = new Robot();
+        robot.init(hardwareMap);
+
+        drive = robot.getDrivetrain();
+        shooter = robot.getShooter();
+        intake = robot.getIntake();
 
         shooterTable = new ShooterLista();
-
-        if (RConstants.USE_SHOOTER) {
-            shooter = new Shooter();
-            shooter.init(hardwareMap);
-        }
-
-        if (RConstants.USE_FEEDER) {
-            intake = new Intake();
-            intake.init(hardwareMap);
-        }
     }
 
     /** Valor positivo anda para frente; negativo anda de ré. */
@@ -61,7 +59,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
             telemetry.addData("Pedido (cm)", cm);
             telemetry.addData("Medido (cm)", drive.getAverageEncoderDistanceCm());
             telemetry.update();
-            sleep(20);
+            aguardarCiclo();
         }
 
         boolean terminou = !drive.isBusy();
@@ -90,7 +88,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
             telemetry.addData("Pedido (cm)", cm);
             telemetry.addData("Medido (cm)", drive.getAverageStrafeDistanceCm());
             telemetry.update();
-            sleep(20);
+            aguardarCiclo();
         }
 
         boolean terminou = !drive.isBusy();
@@ -151,13 +149,13 @@ public abstract class AutoBaseSimples extends LinearOpMode {
             telemetry.addData("Erro", erro);
             telemetry.update();
 
-            if (Math.abs(erro) <= RConstants.TURN_TOLERANCE_DEGREES) {
+            if (Math.abs(erro) <= DrivetrainConfig.TURN_TOLERANCE_DEGREES) {
                 drive.stop();
                 return;
             }
 
             drive.turnToHeading(alvo);
-            sleep(20);
+            aguardarCiclo();
         }
 
         drive.stop();
@@ -290,7 +288,6 @@ public abstract class AutoBaseSimples extends LinearOpMode {
                     && intake.isBusy()
                     && System.currentTimeMillis() - inicioAlimentacao
                     < RConstants.AUTO_FEED_TIMEOUT_MS) {
-                intake.update();
                 telemetry.addData("Disparo", i + 1);
                 telemetry.addData("Total", quantidade);
                 telemetry.addData("RPM pedido do rolo", rpmAlvo);
@@ -298,7 +295,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
                 telemetry.addData("RPM esquerdo", shooter.getLeftRPM());
                 telemetry.addData("RPM direito", shooter.getRightRPM());
                 telemetry.update();
-                sleep(20);
+                aguardarCiclo();
             }
 
             boolean alimentacaoTerminou = !intake.isBusy();
@@ -317,6 +314,15 @@ public abstract class AutoBaseSimples extends LinearOpMode {
         return podeExecutar();
     }
 
+    /**
+     * Espera 20 ms e atualiza o robô (Localization, Intake...). Todos os laços
+     * de espera desta classe usam este método em vez de sleep(20).
+     */
+    private void aguardarCiclo() {
+        robot.update();
+        sleep(20);
+    }
+
     protected void esperar(long milissegundos) {
         long inicio = System.currentTimeMillis();
 
@@ -324,7 +330,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
                 && System.currentTimeMillis() - inicio < milissegundos) {
             telemetry.addData("Aguardando (ms)", milissegundos);
             telemetry.update();
-            sleep(20);
+            aguardarCiclo();
         }
     }
 
@@ -337,7 +343,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
 
             long tempoLigado = System.currentTimeMillis() - inicio;
             boolean tempoMinimo =
-                    tempoLigado >= RConstants.SHOOTER_SPINUP_DELAY_MS;
+                    tempoLigado >= ShooterConfig.SHOOTER_SPINUP_DELAY_MS;
             boolean rpmPronto = shooter.isAtTargetRPM();
 
             telemetry.addLine("Acelerando os dois motores do shooter");
@@ -352,7 +358,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
                 return true;
             }
 
-            sleep(20);
+            aguardarCiclo();
         }
 
         return false;
@@ -380,7 +386,7 @@ public abstract class AutoBaseSimples extends LinearOpMode {
                 return true;
             }
 
-            sleep(20);
+            aguardarCiclo();
         }
 
         return false;
@@ -412,3 +418,4 @@ public abstract class AutoBaseSimples extends LinearOpMode {
         }
     }
 }
+

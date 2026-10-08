@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.backups;
 
+import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -11,7 +14,7 @@ import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.apriltag.AprilTagCamera;
 
 /**
  * Autônomo adaptado para shooter fixo (sem torreta).
@@ -69,7 +72,7 @@ public class AutonomoLongo extends LinearOpMode {
             foundTag = searchForAprilTag(2500);
         }
 
-        double targetRPM = RConstants.DEFAULT_SHOOTER_RPM;
+        double targetRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
 
         if (foundTag) {
             aimByTurningChassis(RConstants.AIM_TURN_TIMEOUT_MS);
@@ -175,7 +178,7 @@ public class AutonomoLongo extends LinearOpMode {
             telemetry.addData("Erro", headingError);
             telemetry.update();
 
-            if (Math.abs(headingError) <= RConstants.TURN_TOLERANCE_DEGREES) {
+            if (Math.abs(headingError) <= DrivetrainConfig.TURN_TOLERANCE_DEGREES) {
                 break;
             }
 
@@ -248,7 +251,7 @@ public class AutonomoLongo extends LinearOpMode {
 
             boolean aimed =
                     Math.abs(bearingDegrees)
-                            <= RConstants.AIM_TOLERANCE_DEGREES;
+                            <= VisionConfig.AIM_TOLERANCE_DEGREES;
 
             telemetry.addLine("Mirando com o chassi...");
             telemetry.addData("Bearing", bearingDegrees);

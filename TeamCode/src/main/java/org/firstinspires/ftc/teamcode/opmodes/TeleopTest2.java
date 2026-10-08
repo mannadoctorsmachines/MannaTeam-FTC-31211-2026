@@ -1,9 +1,12 @@
 package org.firstinspires.ftc.teamcode.opmodes;
 
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.robot.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
@@ -11,7 +14,7 @@ import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.Vision;
 
 @TeleOp(name = "Teste do teste", group = "Competition")
 public class TeleopTest2 extends OpMode {
@@ -22,8 +25,9 @@ public class TeleopTest2 extends OpMode {
         AUTO
     }
 
+    private Robot robot;
     private Drivetrain drive;
-    private AprilTagCamera camera;
+    private Vision vision;
     private Shooter shooter;
     private Intake intake;
 
@@ -33,7 +37,7 @@ public class TeleopTest2 extends OpMode {
     private double lastRawCameraDistanceCm = 0.0;
     private double lastUnfilteredShooterDistanceCm = 0.0;
     private double lastShooterDistanceCm = 0.0;
-    private double lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
+    private double lastTargetRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
     private boolean hasCameraShooterSolution = false;
     private long lastCameraSolutionTimeMs = 0;
     private int lastTargetId = -1;
@@ -52,26 +56,17 @@ public class TeleopTest2 extends OpMode {
 
     @Override
     public void init() {
-        drive = new Drivetrain();
-        drive.init(hardwareMap);
+        robot = new Robot();
+        robot.init(hardwareMap);
+        robot.initVision(hardwareMap);
+
+        drive = robot.getDrivetrain();
+        shooter = robot.getShooter();
+        intake = robot.getIntake();
+        vision = robot.getVision();
 
         distanceCalculator = new CalcDistAlvo();
         shooterTable = new ShooterLista();
-
-        if (RConstants.USE_CAMERA) {
-            camera = new AprilTagCamera();
-            camera.init(hardwareMap);
-        }
-
-        if (RConstants.USE_SHOOTER) {
-            shooter = new Shooter();
-            shooter.init(hardwareMap);
-        }
-
-        if (RConstants.USE_FEEDER) {
-            intake = new Intake();
-            intake.init(hardwareMap);
-        }
 
         telemetry.addLine("DECODE TeleOp pronto.");
         telemetry.addLine("gamepad2 LB: shooter manual");
@@ -85,6 +80,7 @@ public class TeleopTest2 extends OpMode {
 
     @Override
     public void loop() {
+        robot.update();
         updateCameraAndShooterSolution();
         updateDrive();
         updateMechanisms();
@@ -96,17 +92,17 @@ public class TeleopTest2 extends OpMode {
      * converte essa distância no RPM necessário para o shooter.
      */
     private void updateCameraAndShooterSolution() {
-        if (camera == null) {
+        if (vision == null) {
             return;
         }
 
-        camera.update();
-
-        if (!camera.hasTarget()) {
+        // robot.update() já atualizou a visão neste ciclo. A distância só é
+        // usada se o provider mede range (a Limelight atual não mede).
+        if (!vision.hasTarget() || !vision.hasRange()) {
             return;
         }
 
-        int currentTargetId = camera.getTargetId();
+        int currentTargetId = vision.getTargetId();
         boolean solutionExpired = !hasFreshCameraShooterSolution();
         boolean targetChanged = lastTargetId >= 0 && currentTargetId != lastTargetId;
 
@@ -114,7 +110,7 @@ public class TeleopTest2 extends OpMode {
             distanceCalculator.resetDistanceFilter();
         }
 
-        double rangeInches = camera.getRangeInches();
+        double rangeInches = vision.getRangeInches();
         lastRawCameraDistanceCm = distanceCalculator.getCameraDistanceCm(rangeInches);
         lastUnfilteredShooterDistanceCm =
                 distanceCalculator.getShooterDistanceCm(rangeInches);
@@ -130,7 +126,7 @@ public class TeleopTest2 extends OpMode {
     private boolean hasFreshCameraShooterSolution() {
         return hasCameraShooterSolution
                 && System.currentTimeMillis() - lastCameraSolutionTimeMs
-                <= RConstants.CAMERA_SOLUTION_MAX_AGE_MS;
+                <= VisionConfig.CAMERA_SOLUTION_MAX_AGE_MS;
     }
 
     private void updateDrive() {
@@ -174,10 +170,10 @@ public class TeleopTest2 extends OpMode {
             lateral = 0.0;
             yaw = 0.0;
 
-            if (camera != null && camera.hasTarget()) {
-                double bearingDegrees = camera.getBearingDegrees();
+            if (vision != null && vision.hasTarget()) {
+                double bearingDegrees = vision.getBearingDegrees();
                 alignedWithTag = Math.abs(bearingDegrees)
-                        <= RConstants.AIM_TOLERANCE_DEGREES;
+                        <= VisionConfig.AIM_TOLERANCE_DEGREES;
 
                 if (!alignedWithTag) {
                     double targetHeadingDegrees =
@@ -239,7 +235,7 @@ public class TeleopTest2 extends OpMode {
                 : 0;
 
         boolean delayedIntakeFromShooter = shooterSequenceActive
-                && shooterElapsedMs >= RConstants.SHOOTER_SPINUP_DELAY_MS;
+                && shooterElapsedMs >= ShooterConfig.SHOOTER_SPINUP_DELAY_MS;
 
         // RT tem prioridade para permitir destravar o intake imediatamente.
         intakeReversing = reverseIntakeRequested;
@@ -248,8 +244,6 @@ public class TeleopTest2 extends OpMode {
                 || delayedIntakeFromShooter;
 
         if (intake != null) {
-            intake.update();
-
             if (intakeReversing) {
                 intake.startReverseContinuous();
             } else if (intakeRunning) {
@@ -281,7 +275,7 @@ public class TeleopTest2 extends OpMode {
         }
 
         if (shooterMode == ShooterMode.MANUAL) {
-            activeTargetRPM = RConstants.MANUAL_SHOOTER_RPM;
+            activeTargetRPM = ShooterConfig.MANUAL_SHOOTER_RPM;
             shooter.setRPM(activeTargetRPM);
         } else if (shooterMode == ShooterMode.AUTO) {
             activeTargetRPM = lastTargetRPM;
@@ -301,18 +295,18 @@ public class TeleopTest2 extends OpMode {
         telemetry.addData("X alinhamento", alignmentRequested);
 
         telemetry.addLine("----- MIRA -----");
-        telemetry.addData("AprilTag visível", camera != null && camera.hasTarget());
+        telemetry.addData("AprilTag visível", vision != null && vision.hasTarget());
         telemetry.addData("Alinhado", alignedWithTag);
         telemetry.addData("Heading", drive.getHeadingDegrees());
 
-        if (camera != null && camera.hasTarget()) {
-            telemetry.addData("Tag ID", camera.getTargetId());
-            telemetry.addData("Bearing", camera.getBearingDegrees());
-            telemetry.addData("Range (in)", camera.getRangeInches());
-            telemetry.addData("Range cru (cm)", camera.getRangeInches() * 2.54);
+        if (vision != null && vision.hasTarget()) {
+            telemetry.addData("Tag ID", vision.getTargetId());
+            telemetry.addData("Bearing", vision.getBearingDegrees());
+            telemetry.addData("Range (in)", vision.getRangeInches());
+            telemetry.addData("Range cru (cm)", vision.getRangeInches() * 2.54);
 
-            telemetry.addData("Y frontal (cm)", camera.getForwardInches() * 2.54);
-            telemetry.addData("X lateral (cm)", camera.getSideInches() * 2.54);
+            telemetry.addData("Y frontal (cm)", vision.getForwardInches() * 2.54);
+            telemetry.addData("X lateral (cm)", vision.getSideInches() * 2.54);
         }
 
         telemetry.addLine("----- SHOOTER -----");
@@ -350,20 +344,9 @@ public class TeleopTest2 extends OpMode {
 
     @Override
     public void stop() {
-        if (drive != null) {
-            drive.stop();
-        }
-
-        if (shooter != null) {
-            shooter.stop();
-        }
-
-        if (intake != null) {
-            intake.stop();
-        }
-
-        if (camera != null) {
-            camera.close();
+        if (robot != null) {
+            robot.stopAll();
+            robot.closeVision();
         }
     }
 }

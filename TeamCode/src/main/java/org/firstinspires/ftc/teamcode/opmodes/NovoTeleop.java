@@ -1,29 +1,31 @@
 package org.firstinspires.ftc.teamcode.opmodes;
 
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ShooterConfig;
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import static android.os.SystemClock.sleep;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.robot.RConstants;
+import org.firstinspires.ftc.teamcode.robot.Robot;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.DrivetrainConfig;
 import org.firstinspires.ftc.teamcode.subsystems.drivetrain.Drivetrain;
-import org.firstinspires.ftc.teamcode.localization.GobildaOdometry;
 import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 import org.firstinspires.ftc.teamcode.util.CalcDistAlvo;
 import org.firstinspires.ftc.teamcode.util.MathU;
 import org.firstinspires.ftc.teamcode.util.ShooterLista;
-import org.firstinspires.ftc.teamcode.vision.AprilTagCamera;
+import org.firstinspires.ftc.teamcode.vision.Vision;
 
 @TeleOp(name = "DECODE TeleOp Completo", group = "Competition")
 public class NovoTeleop extends OpMode {
 
+    private Robot robot;
     private Drivetrain drive;
-    private AprilTagCamera camera;
+    private Vision vision;
     private Shooter shooter;
     private Intake feeder;
-    private GobildaOdometry odo;
 
     private CalcDistAlvo distanceCalculator;
     private ShooterLista shooterTable;
@@ -31,7 +33,7 @@ public class NovoTeleop extends OpMode {
     private boolean lastManualFeedButton = false;
     private boolean shotFiredThisHold = false;
 
-    private double lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
+    private double lastTargetRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
     private double lastShooterDistanceCm = 0.0;
 
     private boolean auto = false;
@@ -45,26 +47,22 @@ public class NovoTeleop extends OpMode {
         // Inicializa todos os sistemas usando os nomes configurados no hardwareMap
         // Se algum nome de motor, servo ou câmera estiverem diferentes no Driver Hub, o erro provavelmente vai aparecer por aqui
 
-        drive = new Drivetrain();
-        drive.init(hardwareMap);
-        odo.init(hardwareMap);
+        robot = new Robot();
+        robot.init(hardwareMap);
+        robot.initVision(hardwareMap);
 
-        if(RConstants.USE_CAMERA){
-            camera = new AprilTagCamera();
-            camera.init(hardwareMap);
-        }
+        drive = robot.getDrivetrain();
+        vision = robot.getVision();
+        shooter = robot.getShooter();
+        feeder = robot.getIntake();
+
+        // Removido: odo.init(hardwareMap). O campo "odo" nunca era instanciado
+        // (NullPointerException no INIT). A localização será ligada pela
+        // camada Localization quando o contrato dela for definido.
 
         if(RConstants.USE_SHOOTER){
-            shooter = new Shooter();
-            shooter.init(hardwareMap);
-
             distanceCalculator = new CalcDistAlvo();
             shooterTable = new ShooterLista();
-        }
-
-        if(RConstants.USE_FEEDER){
-            feeder = new Intake();
-            feeder.init(hardwareMap);
         }
 
 
@@ -85,12 +83,10 @@ public class NovoTeleop extends OpMode {
     public void loop() {
         // Atualiza a câmera antes do drive, pra mira automática usar o bearing mais recente.
 
+        robot.update();
+
         updateDrive();
 
-
-        if(RConstants.USE_CAMERA){
-            updateCamera();
-        }
         if(RConstants.USE_SHOOTER){
             updateShooter();
         }
@@ -192,20 +188,16 @@ public class NovoTeleop extends OpMode {
         boolean autoAimActive = RConstants.USE_CAMERA
                 && RConstants.USE_SHOOTER
                 && gamepad2.right_bumper
-                && camera.hasTarget();
+                && vision.hasTarget();
 
         if (autoAimActive) {
-            double targetHeadingDegrees = drive.getHeadingDegrees() + camera.getBearingDegrees();
+            double targetHeadingDegrees = drive.getHeadingDegrees() + vision.getBearingDegrees();
             yaw = drive.getTurnPowerToHeading(targetHeadingDegrees);
         }
 
         drive.driveMecanum(axial, lateral, yaw, speedMultiplier);
     }
 
-
-    private void updateCamera() {
-        camera.update();
-    }
 
     private void updateShooter() {
         boolean autoShooterButton = gamepad2.x;
@@ -218,9 +210,9 @@ public class NovoTeleop extends OpMode {
         }
 
         if (autoShooterButton) {
-            if (RConstants.USE_CAMERA && camera.hasTarget()) {
+            if (RConstants.USE_CAMERA && vision.hasTarget() && vision.hasRange()) {
                 // Pega a distância medida pela AprilTag em polegadas.
-                double aprilTagRangeInches = camera.getRangeInches();
+                double aprilTagRangeInches = vision.getRangeInches();
 
                 // Converte/ajusta a distância da câmera para a distância real usada pelo shooter.
                 lastShooterDistanceCm = distanceCalculator.getShooterDistanceCm(aprilTagRangeInches);
@@ -234,7 +226,7 @@ public class NovoTeleop extends OpMode {
                 // Sem torreta: enquanto o botão está segurado, o chassi gira sozinho
                 // (ver updateDrive/autoAimActive) até apontar pro gol usando o bearing
                 // da AprilTag. "Aimed" confirma que esse giro já convergiu.
-                boolean aimed = Math.abs(camera.getBearingDegrees()) <= RConstants.AIM_TOLERANCE_DEGREES;
+                boolean aimed = Math.abs(vision.getBearingDegrees()) <= VisionConfig.AIM_TOLERANCE_DEGREES;
 
                 // Verifica se o shooter já chegou perto do RPM desejado.
                 boolean shooterReady = shooter.isAtTargetRPM();
@@ -254,13 +246,13 @@ public class NovoTeleop extends OpMode {
             } else {
                 // Se o modo automático estiver ativo, mas não houver AprilTag,
                 // usa o RPM padrão como alternativa.
-                lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
+                lastTargetRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
                 shooter.setRPM(lastTargetRPM);
             }
 
         } else if (manualShooterButton) {
             // Modo manual: gira o shooter no RPM padrão, sem depender da câmera.
-            lastTargetRPM = RConstants.DEFAULT_SHOOTER_RPM;
+            lastTargetRPM = ShooterConfig.DEFAULT_SHOOTER_RPM;
             shooter.setRPM(lastTargetRPM);
             shotFiredThisHold = false;
 
@@ -273,8 +265,6 @@ public class NovoTeleop extends OpMode {
     }
 
     private void updateFeeder() {
-        feeder.update();
-
         // Enquanto A estiver pressionado, o intake continua puxando.
         if (gamepad2.left_bumper) {
             feeder.startContinuous();
@@ -296,16 +286,16 @@ public class NovoTeleop extends OpMode {
 
         if(RConstants.USE_CAMERA) {
             telemetry.addLine("----- CAMERA (mira + distância) -----");
-            telemetry.addData("Has AprilTag", camera.hasTarget());
+            telemetry.addData("Has AprilTag", vision.hasTarget());
 
             // Só mostra os dados detalhados da AprilTag se alguma tag estiver visível.
             // Sem torreta: enquanto o botão de shooter automático estiver segurado,
             // o próprio chassi gira sozinho usando esse Bearing.
-            if (camera.hasTarget()) {
-                telemetry.addData("Tag ID", camera.getTargetId());
-                telemetry.addData("Range inches", camera.getRangeInches());
-                telemetry.addData("Bearing", camera.getBearingDegrees());
-                telemetry.addData("Yaw", camera.getYawDegrees());
+            if (vision.hasTarget()) {
+                telemetry.addData("Tag ID", vision.getTargetId());
+                telemetry.addData("Range inches", vision.getRangeInches());
+                telemetry.addData("Bearing", vision.getBearingDegrees());
+                telemetry.addData("Yaw", vision.getYawDegrees());
                 telemetry.addData("Mira automática ativa", gamepad2.right_bumper);
             }
         }
@@ -324,20 +314,9 @@ public class NovoTeleop extends OpMode {
 
     public void stop() {
         // Garante que os principais sistemas parem quando o OpMode for encerrado.
-        if(drive != null){
-            drive.stop();
-        }
-
-        if(RConstants.USE_SHOOTER && shooter != null){
-            shooter.stop();
-        }
-
-        if(RConstants.USE_CAMERA && camera != null){
-            camera.close();
-        }
-
-        if(RConstants.USE_FEEDER && feeder != null){
-            feeder.stop();
+        if(robot != null){
+            robot.stopAll();
+            robot.closeVision();
         }
     }
 }

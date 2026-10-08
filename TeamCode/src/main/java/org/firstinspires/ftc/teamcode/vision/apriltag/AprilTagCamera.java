@@ -1,9 +1,11 @@
-package org.firstinspires.ftc.teamcode.vision;
+package org.firstinspires.ftc.teamcode.vision.apriltag;
 
+import org.firstinspires.ftc.teamcode.localization.PoseObservation;
+import org.firstinspires.ftc.teamcode.vision.Vision;
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.teamcode.robot.RConstants;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
@@ -11,13 +13,19 @@ import android.util.Size;
 
 import java.util.List;
 
-public class AprilTagCamera {
+/**
+ * Implementação de {@link Vision} com webcam + FTC Vision (AprilTagProcessor).
+ * Única classe que conhece VisionPortal / AprilTagProcessor.
+ */
+public class AprilTagCamera implements Vision {
 
     private AprilTagProcessor aprilTagProcessor;
     private VisionPortal visionPortal;
 
     private AprilTagDetection atualDetection;
+    private long lastObservationTimeMs = -1;
 
+    @Override
     public void init(HardwareMap hardwareMap) {
         aprilTagProcessor = new AprilTagProcessor.Builder()
                 .setDrawAxes(true)
@@ -27,12 +35,13 @@ public class AprilTagCamera {
                 .build();
 
         visionPortal = new VisionPortal.Builder()
-                .setCamera(hardwareMap.get(WebcamName.class, RConstants.WEBCAM))
+                .setCamera(hardwareMap.get(WebcamName.class, VisionConfig.WEBCAM))
                 .setCameraResolution(new Size(640, 480))
                 .addProcessor(aprilTagProcessor)
                 .build();
     }
 
+    @Override
     public void update() {
         atualDetection = null;
 
@@ -54,8 +63,8 @@ public class AprilTagCamera {
                 continue;
             }
 
-            if (RConstants.TARGET_APRIL_TAG_ID >= 0
-                    && detection.id != RConstants.TARGET_APRIL_TAG_ID) {
+            if (VisionConfig.TARGET_APRIL_TAG_ID >= 0
+                    && detection.id != VisionConfig.TARGET_APRIL_TAG_ID) {
                 continue;
             }
 
@@ -66,12 +75,40 @@ public class AprilTagCamera {
         }
 
         atualDetection = DetectionProxima;
+
+        if (atualDetection != null) {
+            lastObservationTimeMs = System.currentTimeMillis();
+        }
     }
 
+    @Override
+    public boolean hasRange() {
+        return hasTarget();
+    }
+
+    @Override
+    public long getObservationAgeMs() {
+        return lastObservationTimeMs < 0
+                ? Long.MAX_VALUE
+                : System.currentTimeMillis() - lastObservationTimeMs;
+    }
+
+    /**
+     * Sem observação de pose: o AprilTagProcessor não tem a pose da câmera no
+     * robô configurada (setCameraPose), então robotPose não representaria o
+     * robô. Devolve null até essa configuração existir.
+     */
+    @Override
+    public PoseObservation getPoseObservation() {
+        return null;
+    }
+
+    @Override
     public boolean hasTarget() {
         return atualDetection != null && atualDetection.ftcPose != null;
     }
 
+    @Override
     public int getTargetId() {
         if (!hasTarget()) {
             return -1;
@@ -80,6 +117,7 @@ public class AprilTagCamera {
         return atualDetection.id;
     }
 
+    @Override
     public double getRangeInches() {
         if (!hasTarget()) {
             return 0.0;
@@ -88,6 +126,7 @@ public class AprilTagCamera {
         return atualDetection.ftcPose.range;
     }
 
+    @Override
     public double getBearingDegrees() {
         if (!hasTarget()) {
             return 0.0;
@@ -96,6 +135,7 @@ public class AprilTagCamera {
         return atualDetection.ftcPose.bearing;
     }
 
+    @Override
     public double getYawDegrees() {
         if (!hasTarget()) {
             return 0.0;
@@ -104,6 +144,7 @@ public class AprilTagCamera {
         return atualDetection.ftcPose.yaw;
     }
 
+    @Override
     public double getForwardInches() {
         if (!hasTarget()) {
             return 0.0;
@@ -112,6 +153,7 @@ public class AprilTagCamera {
         return atualDetection.ftcPose.y;
     }
 
+    @Override
     public double getSideInches() {
         if (!hasTarget()) {
             return 0.0;
@@ -120,6 +162,7 @@ public class AprilTagCamera {
         return atualDetection.ftcPose.x;
     }
 
+    @Override
     public void close() {
         if (visionPortal != null) {
             visionPortal.close();

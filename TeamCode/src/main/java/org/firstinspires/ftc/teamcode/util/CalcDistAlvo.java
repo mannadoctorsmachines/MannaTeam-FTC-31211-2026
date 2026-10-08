@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.util;
 
+import org.firstinspires.ftc.teamcode.vision.VisionConfig;
 import org.firstinspires.ftc.teamcode.robot.RConstants;
 
 public class CalcDistAlvo {
@@ -21,8 +22,8 @@ public class CalcDistAlvo {
         return Math.max(
                 0.0,
                 rawCameraDistanceCm
-                        * RConstants.CAMERA_DISTANCE_SCALE
-                        + RConstants.CAMERA_DISTANCE_BIAS_CM
+                        * VisionConfig.CAMERA_DISTANCE_SCALE
+                        + VisionConfig.CAMERA_DISTANCE_BIAS_CM
         );
     }
 
@@ -32,8 +33,8 @@ public class CalcDistAlvo {
 
         double shooterDistanceCm =
                 calibratedCameraDistanceCm
-                        + RConstants.CAMERA_TO_SHOOTER_OFFSET_CM
-                        + RConstants.TAG_TO_TARGET_OFFSET_CM;
+                        + VisionConfig.CAMERA_TO_SHOOTER_OFFSET_CM
+                        + VisionConfig.TAG_TO_TARGET_OFFSET_CM;
 
         return Math.max(0.0, shooterDistanceCm);
     }
@@ -52,7 +53,7 @@ public class CalcDistAlvo {
         }
 
         double alpha = MathU.clamp(
-                RConstants.CAMERA_DISTANCE_FILTER_ALPHA,
+                VisionConfig.CAMERA_DISTANCE_FILTER_ALPHA,
                 0.0,
                 1.0
         );
